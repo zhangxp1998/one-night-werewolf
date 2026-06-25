@@ -142,9 +142,9 @@ if gs["stage"] != "setup":
         st.divider()
         
         st.markdown("**☀️ 白天流程与规则：**")
-        st.caption("1. 所有玩家依次进行一轮公开讨论发言。")
-        st.caption("2. 发言中允许编造谎言、试探、指控或真诚排查。")
-        st.caption("3. 讨论结束后秘密投票，票数最多的玩家被处决。")
+        st.caption("1. 白天讨论共进行 3 轮发言，每轮所有玩家轮流公开发言一次。")
+        st.caption("2. 发言中允许随着多轮次推进，编造谎言、试探、指控或真诚排查。")
+        st.caption("3. 3 轮发言结束后进行秘密投票处决。")
 
 # Helper: check if current role is human
 def is_role_human(role_name: str) -> bool:
