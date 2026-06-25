@@ -70,11 +70,13 @@ if st.session_state.game_state["stage"] == "setup":
     mode = st.radio("选择游戏模式：", ["🤖 纯 AI 模拟对局 (观察者模式)", "🎮 亲自参与游戏 (玩家模式)"])
     
     human_id = None
+    auto_loop = False
     if mode == "🎮 亲自参与游戏 (玩家模式)":
         human_id = st.selectbox("选择你的玩家 ID (你可以扮演玩家 1 至 6)：", list(range(1, 7)), index=0)
         st.session_state.game_state["mode"] = "Play"
     else:
         st.session_state.game_state["mode"] = "Simulation"
+        auto_loop = st.checkbox("🔄 开启 10 局自动连续模拟对战复盘模式", value=False)
         
     temp = st.slider("模型创意温度 (Temperature) - 越高发言越狡猾多变：", 0.5, 1.2, 0.8, 0.05)
     
@@ -88,6 +90,14 @@ if st.session_state.game_state["stage"] == "setup":
         config.DEFAULT_THINKING_LEVEL = thinking_level
         config.LLM_DRIVEN_NIGHT_ACTIONS = llm_night
         
+        if auto_loop:
+            st.session_state.auto_loop = True
+            st.session_state.target_games = 10
+            st.session_state.completed_games = 0
+            st.session_state.game_stats = {"Villager": 0, "Werewolf": 0}
+        else:
+            st.session_state.auto_loop = False
+            
         st.session_state.engine.setup_game(human_player_id=human_id)
         
         # Determine randomized speaking order starting from S, then wrapping around
@@ -598,3 +608,53 @@ elif gs["stage"] == "ended":
     if st.button("🔄 再来一局", use_container_width=True):
         restart_game()
         st.rerun()
+
+    # Auto Loop Transition
+    if st.session_state.get("auto_loop", False):
+        if not vr.get("stats_recorded", False):
+            st.session_state.completed_games += 1
+            st.session_state.game_stats[vr["winner"]] += 1
+            vr["stats_recorded"] = True
+            
+        completed = st.session_state.completed_games
+        target = st.session_state.target_games
+        
+        if completed < target:
+            st.info(f"📊 自动对局进度：{completed} / {target} 局。村民胜利：{st.session_state.game_stats['Villager']} 局，狼人胜利：{st.session_state.game_stats['Werewolf']} 局。")
+            st.info("⏳ 5 秒后自动启动下一局，沉淀的心得体会已自动加载...")
+            time.sleep(5)
+            
+            # Reset state for next game
+            st.session_state.engine = OneNightEngine()
+            st.session_state.game_state = {
+                "stage": "night",
+                "human_id": None,
+                "round": 1,
+                "speaker_idx": 0,
+                "speaking_order": [],
+                "night_step": 0,
+                "vote_result": None,
+                "mode": "Simulation",
+                "has_spoken": False,
+                "current_statement": "",
+                "current_thought": "",
+                "speaking_phase": None
+            }
+            st.session_state.engine.setup_game(human_player_id=None)
+            
+            start_idx = random.randint(1, 6)
+            order = [((start_idx - 1 + i) % 6) + 1 for i in range(6)]
+            st.session_state.game_state["speaking_order"] = order
+            
+            if "werewolf_c1" in st.session_state:
+                del st.session_state.werewolf_c1
+            if "minion_c1" in st.session_state:
+                del st.session_state.minion_c1
+                
+            st.rerun()
+        else:
+            st.success(f"🏆 10 局自动模拟对局已全部结束！村民阵营胜率：{st.session_state.game_stats['Villager']/target*100:.1f}%，狼人阵营胜率：{st.session_state.game_stats['Werewolf']/target*100:.1f}%。")
+            if st.button("🏁 清理并返回初始界面", use_container_width=True):
+                st.session_state.auto_loop = False
+                restart_game()
+                st.rerun()
