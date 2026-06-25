@@ -189,10 +189,21 @@ class LLMPlayer:
         order_desc = " -> ".join([f"玩家 {pid}" for pid in speaking_order])
         my_pos = speaking_order.index(self.player_id) + 1
 
+        # Extract night action logs from history
+        night_info = ""
+        for m in self.history:
+            if m.role == "user" and ("夜间" in m.parts[0].text or "你在夜间" in m.parts[0].text or "选择查看" in m.parts[0].text or "晋升" in m.parts[0].text):
+                night_info = m.parts[0].text.strip()
+                break
+
         # Create user prompt for the turn
         user_prompt = f"""现在是白天讨论发言环节。
         本局讨论的发言顺序为：{order_desc}
-        你是第 {my_pos} 位发言的玩家。
+        你是第 {my_pos} 位发言 of 玩家。
+
+        你的个人绝密身份与行动信息（绝对不可泄露，仅供你内心分析推理）：
+        - 你的初始底牌是：【{self.initial_role}】
+        - 你的夜晚行动与所知信息是：{night_info if night_info else "无特殊行动/信息。"}
 
         当前轮次与之前的对话历史如下：
         {current_round_context}
@@ -269,7 +280,19 @@ class LLMPlayer:
         if self.is_human:
             return "Human vote thought", 0
 
+        # Extract night action logs from history
+        night_info = ""
+        for m in self.history:
+            if m.role == "user" and ("夜间" in m.parts[0].text or "你在夜间" in m.parts[0].text or "选择查看" in m.parts[0].text or "晋升" in m.parts[0].text):
+                night_info = m.parts[0].text.strip()
+                break
+
         user_prompt = f"""白天的讨论已经结束，现在进入投票淘汰环节。
+
+        你的个人绝密身份与行动信息（绝对不可泄露，仅供你投票决策参考）：
+        - 你的初始底牌是：【{self.initial_role}】
+        - 你的夜晚行动与所知信息是：{night_info if night_info else "无特殊行动/信息。"}
+
         以下是完整的讨论记录：
         {discussion_log}
 
