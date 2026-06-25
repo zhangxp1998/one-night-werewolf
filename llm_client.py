@@ -336,8 +336,9 @@ class LLMPlayer:
         你在讨论阶段每轮的内心真实想法：
         {private_thoughts}
         
-        请作为【{self.initial_role}】这个角色的资深玩家，对这局游戏进行复盘，总结经验与教训。
-        如果是你扮演的 AI 玩家（或人类玩家）做错了，请指出哪里可以改进；如果做对了，请总结成功的打法。
+        请作为【{self.initial_role}】这个角色的资深玩家，对这局游戏进行复盘，总结经验与教训：
+        - 如果你所在的阵营最终【失败】：请深刻反思为什么会输（why did we lose）、哪里做错了或被误导了（what was done wrong）、以及未来该如何改进以提高胜率（how to improve）。
+        - 如果你所在的阵营最终【胜利】：请深入总结什么地方做得好或战术成功了（what went well），提炼出值得发扬的胜利经验。
         
         请输出一份更新后的《{self.initial_role}角色心得体会》Markdown 文档。
         
