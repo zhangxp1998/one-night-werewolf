@@ -112,6 +112,27 @@ if st.session_state.game_state["stage"] == "setup":
 engine = st.session_state.engine
 gs = st.session_state.game_state
 
+# Persistent Sidebar for Deck Configuration and Ability Rules
+if gs["stage"] != "setup":
+    with st.sidebar:
+        st.subheader("📊 本局角色配置与规则")
+        
+        from collections import Counter
+        deck_counts = Counter(config.DECK_ROLES)
+        st.markdown("**🃏 牌堆配置：**")
+        for role, count in deck_counts.items():
+            role_cn = engine.roles_db[role]["name_cn"]
+            st.write(f"- {role_cn} ({role}): {count} 个")
+            
+        st.divider()
+        
+        st.markdown("**📜 角色技能规则：**")
+        for role in sorted(list(set(config.DECK_ROLES))):
+            role_cn = engine.roles_db[role]["name_cn"]
+            ability = engine.roles_db[role]["ability"]
+            st.markdown(f"**{role_cn} ({role})**")
+            st.caption(ability)
+
 # Helper: check if current role is human
 def is_role_human(role_name: str) -> bool:
     if gs["human_id"] is None:

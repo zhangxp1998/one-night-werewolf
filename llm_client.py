@@ -124,19 +124,37 @@ class LLMPlayer:
         if reflection_str:
             reflection_instruction = f"\n\n以下是你在过往游戏局中总结并沉淀的【{role_cn}】经验与心得体会，请务必学习并融入到你这局的游戏策略中：\n{reflection_str}"
 
+        from collections import Counter
+        deck_counts = Counter(config.DECK_ROLES)
+        deck_desc_list = []
+        for role, count in deck_counts.items():
+            role_cn = roles_db[role]["name_cn"]
+            deck_desc_list.append(f"{role_cn} ({role}): {count}个")
+        deck_description = "，".join(deck_desc_list)
+
+        rules_list = []
+        for role in sorted(list(set(config.DECK_ROLES))):
+            role_cn = roles_db[role]["name_cn"]
+            role_ability = roles_db[role]["ability"]
+            rules_list.append(f"- **{role_cn} ({role})**：{role_ability}")
+        all_rules_description = "\n        ".join(rules_list)
+
         self.system_instruction = f"""你是《一夜终极狼人》游戏中的玩家：{self.player_name}。
         你的初始底牌是：【{role_cn}】。
 
         游戏基本规则：
         1. 本局共有6名玩家 (玩家1-6) 和3张中央牌 (中央0, 1, 2)。
-        2. 狼人阵营 (2个狼人、1个爪牙)；村民阵营 (1个预言家、1个强盗、1个捣蛋鬼、2个守夜人、1个酒鬼)。
+        2. 本局配置的牌堆角色分布为：{deck_description}。
         3. 胜利条件：
            - 如果村民投票淘汰了至少一只【狼人】，则村民阵营获胜。
-           - 如果没有淘汰【狼人】（比如淘汰了【爪牙】或【村民】），则狼人阵营获胜。
+           - 如果没有淘汰【狼人】（比如淘汰了【爪牙】或【村民】），则狼人阵营获胜.
            - 特殊情况：如果场上没有狼人被派发给玩家（即狼人都在中央牌），必须所有人每人都只得1票（即没有玩家被淘汰，如每个人都投自己），村民阵营才能获胜。如果有任何玩家在此情况下被投死，则狼人阵营获胜。
         4. 在夜间，某些角色的牌可能会被交换（如强盗、捣蛋鬼、酒鬼）。你目前知道自己的初始底牌，但你的牌有可能在夜间被换走。
         5. 你需要结合白天大家的发言，推理出自己当前的真实身份，并极力帮助自己的阵营（即你初始底牌所代表的阵营，除非你确信你被换了牌）获胜。
         6. 狼人要互相打配合、说谎或假跳身份。爪牙需要保护狼人、替狼人挡刀或吸引火力（爪牙死了但狼人没死，狼人赢）。村民需要通过逻辑排除法推理出真相。
+
+        本局涉及的所有角色技能规则描述（供你发言和伪装时推理参考）：
+        {all_rules_description}
 
         你扮演的角色【{role_cn}】技能描述：
         {ability}
