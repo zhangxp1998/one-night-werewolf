@@ -502,10 +502,22 @@ elif gs["stage"] == "voting":
 
 # ----------------- GAME OVER / RESULTS -----------------
 elif gs["stage"] == "ended":
-    st.subheader("🏁 游戏结束 · 结算面板")
-    
     vr = gs["vote_result"]
     
+    # Run reflection phase exactly once
+    if "reflections_done" not in vr:
+        with st.spinner("🧠 正在组织大模型玩家进行本局复盘并沉淀心得体会..."):
+            updated = engine.run_reflection_phase(winner=vr["winner"], reason=vr["reason"])
+            vr["reflections_updated"] = updated
+            vr["reflections_done"] = True
+            st.rerun()
+            
+    st.subheader("🏁 游戏结束 · 结算面板")
+    
+    # Show experience updates summary
+    if vr.get("reflections_updated"):
+        st.success(f"✨ 经验沉淀成功！以下角色的心得体会已被总结并更新：{', '.join([engine.roles_db[role]['name_cn'] for role in vr['reflections_updated']])}。心得已保存至 `reflections/` 目录，将在下一局对应角色分发时被自动学习加载。")
+        
     # 1. Announce Winner
     if vr["winner"] == "Villager":
         st.balloons()

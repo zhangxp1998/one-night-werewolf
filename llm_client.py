@@ -105,9 +105,24 @@ class LLMPlayer:
 
     def initialize_system_prompt(self, roles_db: dict):
         """Builds the system instruction for this player based on their initial role and rules."""
+        import os
         role_cn = roles_db[self.initial_role]["name_cn"]
         ability = roles_db[self.initial_role]["ability"]
         strategies = "\n".join([f"- {s}" for s in roles_db[self.initial_role]["strategies"]])
+
+        # Load past reflection if exists
+        reflection_str = ""
+        reflection_path = f"reflections/{self.initial_role}.md"
+        if os.path.exists(reflection_path):
+            try:
+                with open(reflection_path, "r", encoding="utf-8") as f:
+                    reflection_str = f.read().strip()
+            except Exception:
+                pass
+                
+        reflection_instruction = ""
+        if reflection_str:
+            reflection_instruction = f"\n\n以下是你在过往游戏局中总结并沉淀的【{role_cn}】经验与心得体会，请务必学习并融入到你这局的游戏策略中：\n{reflection_str}"
 
         self.system_instruction = f"""你是《一夜终极狼人》游戏中的玩家：{self.player_name}。
         你的初始底牌是：【{role_cn}】。
@@ -128,6 +143,7 @@ class LLMPlayer:
 
         你角色的最优策略建议：
         {strategies}
+        {reflection_instruction}
 
         请严格遵守你的角色设定，隐藏自己的真实信息（如果是坏人），或者策略性地透露信息（如果是好人），来误导对手、帮助队友。
         """
@@ -260,3 +276,59 @@ class LLMPlayer:
             return thought, vote_target
         except Exception:
             return "无法解析投票", self.player_id
+
+    def generate_reflection(self, is_victory: bool, winner: str, outcome_reason: str, night_logs: str, discussion_log: str, private_thoughts: str) -> str:
+        """Queries the model to review the game and update its role reflection markdown."""
+        import os
+        
+        old_reflection = ""
+        os.makedirs("reflections", exist_ok=True)
+        reflection_path = f"reflections/{self.initial_role}.md"
+        if os.path.exists(reflection_path):
+            try:
+                with open(reflection_path, "r", encoding="utf-8") as f:
+                    old_reflection = f.read()
+            except Exception:
+                pass
+
+        victory_status = "【胜利】" if is_victory else "【失败】"
+        
+        user_prompt = f"""游戏结束了。你本局的初始角色是：【{self.initial_role}】（最终角色是：【{self.current_role}】）。
+        你的初始阵营在本局中最终是：{victory_status}。
+        胜利阵营是：{winner} 阵营。胜负原因：{outcome_reason}
+        
+        夜间详细行动日志：
+        {night_logs}
+        
+        白天发言的完整公共记录：
+        {discussion_log}
+        
+        你在讨论阶段每轮的内心真实想法：
+        {private_thoughts}
+        
+        请作为【{self.initial_role}】这个角色的资深玩家，对这局游戏进行复盘，总结经验与教训。
+        如果是你扮演的 AI 玩家（或人类玩家）做错了，请指出哪里可以改进；如果做对了，请总结成功的打法。
+        
+        请输出一份更新后的《{self.initial_role}角色心得体会》Markdown 文档。
+        
+        格式与规则要求：
+        1. 必须使用 Markdown 格式。
+        2. 如果下方提供了旧的心得体会，请把旧的有用经验保留，并与这局的新教训进行融合整理。不要直接丢弃旧的心得体会。
+        3. 请将输出严格限制在 4096 字节（约 1000 个汉字）以内，精简干练，不要包含任何多余的客套话或外围包裹文本。
+        
+        以下是历史的心得体会（如果有的话，供参考融合）：
+        ---
+        {old_reflection}
+        ---
+        """
+        
+        config_dict = {
+            "temperature": 0.6,
+            "max_output_tokens": 1200
+        }
+        
+        response = generate_content_with_retry(
+            [types.Content(role="user", parts=[types.Part.from_text(text=user_prompt)])],
+            config_dict
+        )
+        return response.text

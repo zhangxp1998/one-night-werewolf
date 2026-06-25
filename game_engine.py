@@ -530,3 +530,67 @@ class OneNightEngine:
                 reason = f"场上没有狼人和爪牙，但大家投票处决了 【玩家 {eliminated_ids}】。村民阵营误杀无辜，狼人阵营胜利！"
 
         return winner, reason, eliminated_roles_cn
+
+    def run_reflection_phase(self, winner: str, reason: str) -> list[str]:
+        """Runs reflection generation for all 6 active starting roles.
+        Returns a list of roles that were successfully reflected and updated.
+        """
+        import os
+        updated_roles = []
+        
+        # Prepare night logs and discussion logs as text
+        night_logs_str = "\n".join(self.night_logs)
+        
+        # Format discussion
+        lines = []
+        for entry in self.public_discussion_log:
+            lines.append(f"【玩家 {entry['speaker']}】 说: \"{entry['statement']}\"")
+        discussion_log_str = "\n".join(lines)
+        
+        for p_id, player in self.players.items():
+            init_role = player.initial_role
+            
+            # Determine alignment
+            is_werewolf_team = init_role in ["Werewolf", "Minion"]
+            is_victory = (is_werewolf_team and winner == "Werewolf") or (not is_werewolf_team and winner == "Villager")
+            
+            player_thoughts = "\n".join(self.private_thoughts[p_id])
+            
+            # Call reflection
+            try:
+                reflection_markdown = player.generate_reflection(
+                    is_victory=is_victory,
+                    winner=winner,
+                    outcome_reason=reason,
+                    night_logs=night_logs_str,
+                    discussion_log=discussion_log_str,
+                    private_thoughts=player_thoughts
+                )
+                
+                # Cleanup code block ticks
+                text = reflection_markdown.strip()
+                if text.startswith("```"):
+                    lines_text = text.split("\n")
+                    if lines_text[0].startswith("```"):
+                        lines_text = lines_text[1:]
+                    if lines_text[-1].startswith("```"):
+                        lines_text = lines_text[:-1]
+                    text = "\n".join(lines_text).strip()
+                    
+                # Enforce size limit (4096 bytes)
+                encoded = text.encode('utf-8')
+                if len(encoded) > 4096:
+                    # Safe truncation on byte-level
+                    text = encoded[:4096].decode('utf-8', errors='ignore')
+                    
+                # Save to reflections folder
+                reflection_path = f"reflections/{init_role}.md"
+                with open(reflection_path, "w", encoding="utf-8") as f:
+                    f.write(text)
+                
+                updated_roles.append(init_role)
+            except Exception as e:
+                # Silently catch/debug log
+                pass
+                
+        return updated_roles
