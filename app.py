@@ -544,17 +544,9 @@ elif gs["stage"] == "voting":
                 gs["stage"] = "ended"
                 st.rerun()
 
-# ----------------- GAME OVER / RESULTS -----------------
+    # ----------------- GAME OVER / RESULTS -----------------
 elif gs["stage"] == "ended":
     vr = gs["vote_result"]
-    
-    # Run reflection phase exactly once
-    if "reflections_done" not in vr:
-        with st.spinner("🧠 正在组织大模型玩家进行本局复盘并沉淀心得体会..."):
-            updated = engine.run_reflection_phase(winner=vr["winner"], reason=vr["reason"])
-            vr["reflections_updated"] = updated
-            vr["reflections_done"] = True
-            st.rerun()
             
     st.subheader("🏁 游戏结束 · 结算面板")
     
@@ -637,6 +629,14 @@ elif gs["stage"] == "ended":
             # Show vote thought
             st.write(f"- 投票动机: {vr['thoughts'][p_id]}")
             st.divider()
+
+    # Run reflection phase exactly once
+    if "reflections_done" not in vr:
+        with st.spinner("🧠 正在组织大模型玩家进行本局复盘并沉淀心得体会..."):
+            updated = engine.run_reflection_phase(winner=vr["winner"], reason=vr["reason"])
+            vr["reflections_updated"] = updated
+            vr["reflections_done"] = True
+            st.rerun()
 
     # Restart button
     if st.button("🔄 再来一局", use_container_width=True):
