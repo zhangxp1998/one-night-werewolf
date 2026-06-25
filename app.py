@@ -132,6 +132,19 @@ if gs["stage"] != "setup":
             ability = engine.roles_db[role]["ability"]
             st.markdown(f"**{role_cn} ({role})**")
             st.caption(ability)
+            
+        st.divider()
+        
+        st.markdown("**🌙 夜晚行动时序：**")
+        st.caption("① 狼人 -> ② 爪牙 -> ③ 守夜人 -> ④ 预言家 -> ⑤ 强盗 -> ⑥ 捣蛋鬼 -> ⑦ 酒鬼")
+        st.caption("⚠️ 注：强盗换牌在前，捣蛋鬼换牌在后，酒鬼换牌最迟。在白天逻辑推理中，请注意各角色的行动先后顺序！")
+        
+        st.divider()
+        
+        st.markdown("**☀️ 白天流程与规则：**")
+        st.caption("1. 所有玩家依次进行一轮公开讨论发言。")
+        st.caption("2. 发言中允许编造谎言、试探、指控或真诚排查。")
+        st.caption("3. 讨论结束后秘密投票，票数最多的玩家被处决。")
 
 # Helper: check if current role is human
 def is_role_human(role_name: str) -> bool:
