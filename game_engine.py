@@ -416,13 +416,13 @@ class OneNightEngine:
             lines.append(f"【玩家 {entry['speaker']}】 说: \"{entry['statement']}\"")
         return "\n".join(lines)
 
-    def run_day_speaking_turn(self, p_id: int, round_num: int):
+    def run_day_speaking_turn(self, p_id: int, round_num: int, speaking_order: list[int]):
         """Orchestration step for a single player's speech in a round."""
         player = self.players[p_id]
         context_str = self.format_discussion_so_far()
         
         # Human speaking is managed by UI, this function is only called for AI
-        thought, statement = player.generate_day_statement(context_str)
+        thought, statement = player.generate_day_statement(context_str, speaking_order)
             
         # Log thought privately
         self.private_thoughts[p_id].append(f"轮次 {round_num}: {thought}")

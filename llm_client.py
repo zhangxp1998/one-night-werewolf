@@ -181,13 +181,19 @@ class LLMPlayer:
             )
         )
 
-    def generate_day_statement(self, current_round_context: str) -> tuple[str, str]:
+    def generate_day_statement(self, current_round_context: str, speaking_order: list[int]) -> tuple[str, str]:
         """Queries the model for their day phase thought and statement (JSON)."""
         if self.is_human:
             return "Human thought", ""
 
+        order_desc = " -> ".join([f"玩家 {pid}" for pid in speaking_order])
+        my_pos = speaking_order.index(self.player_id) + 1
+
         # Create user prompt for the turn
         user_prompt = f"""现在是白天讨论发言环节。
+        本局讨论的发言顺序为：{order_desc}
+        你是第 {my_pos} 位发言的玩家。
+
         当前轮次与之前的对话历史如下：
         {current_round_context}
 

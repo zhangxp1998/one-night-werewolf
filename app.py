@@ -425,7 +425,7 @@ elif gs["stage"] == "day_speaking":
                 if phase is None:
                     st.info(f"⏳ 正在等待 【玩家 {active_speaker}】 思考并组织语言...")
                     with st.spinner("思考中..."):
-                        thought, statement = engine.run_day_speaking_turn(active_speaker, round_num)
+                        thought, statement = engine.run_day_speaking_turn(active_speaker, round_num, gs["speaking_order"])
                         gs["current_thought"] = thought
                         gs["current_statement"] = statement
                         
