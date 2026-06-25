@@ -35,7 +35,9 @@ if "game_state" not in st.session_state:
         "vote_result": None,
         "mode": "Simulation", # "Simulation" or "Play"
         "has_spoken": False,
-        "current_statement": ""
+        "current_statement": "",
+        "current_thought": "",
+        "speaking_phase": None
     }
 
 def restart_game():
@@ -50,7 +52,9 @@ def restart_game():
         "vote_result": None,
         "mode": st.session_state.game_state["mode"],
         "has_spoken": False,
-        "current_statement": ""
+        "current_statement": "",
+        "current_thought": "",
+        "speaking_phase": None
     }
     # Clean up temporary night choice states
     if "werewolf_c1" in st.session_state:
@@ -73,13 +77,17 @@ if st.session_state.game_state["stage"] == "setup":
         st.session_state.game_state["mode"] = "Simulation"
         
     temp = st.slider("模型创意温度 (Temperature) - 越高发言越狡猾多变：", 0.5, 1.2, 0.8, 0.05)
-    config.DEFAULT_TEMP = temp
     
-    llm_night = st.checkbox("大模型自主进行夜间行动 (若取消勾选，则 AI 玩家将进行随机行动)", value=True)
-    config.LLM_DRIVEN_NIGHT_ACTIONS = llm_night
+    thinking_level = st.selectbox("🧠 AI 思考深度 (Thinking Level) - 开启后会进行深度逻辑推理：", ["OFF", "MINIMAL", "LOW", "MEDIUM", "HIGH"], index=3)
+    
+    llm_night = st.checkbox("大模型自主进行夜间行动 (若取消勾选，则 AI 玩家将进行随机行动)", value=False)
     
     if st.button("🚀 开始游戏", use_container_width=True):
         st.session_state.game_state["human_id"] = human_id
+        config.DEFAULT_TEMP = temp
+        config.DEFAULT_THINKING_LEVEL = thinking_level
+        config.LLM_DRIVEN_NIGHT_ACTIONS = llm_night
+        
         st.session_state.engine.setup_game(human_player_id=human_id)
         
         # Determine randomized speaking order starting from S, then wrapping around
@@ -104,10 +112,11 @@ def is_role_human(role_name: str) -> bool:
 if gs["stage"] == "night":
     st.subheader("🌙 夜间行动阶段")
     
-    # Display the public/detailed night logs so far
+    # Display the public/detailed night logs so far inside an expander
     logs_to_show = engine.night_logs if gs["mode"] == "Simulation" else engine.public_night_logs
-    for log in logs_to_show:
-        st.write(log)
+    with st.expander("📁 昨晚行动日志", expanded=True):
+        for log in logs_to_show:
+            st.write(log)
         
     step = gs["night_step"]
     
@@ -297,16 +306,22 @@ if gs["stage"] == "night":
 elif gs["stage"] == "day_speaking":
     st.subheader(f"💬 白天讨论发言阶段 - 第 {gs['round']} / 3 轮")
     
-    # Persistent Public/Detailed Night Log
-    log_title = "📁 昨晚行动日志 (绝密揭晓)" if gs["mode"] == "Simulation" else "📁 昨晚公共行动简报 (无剧透)"
+    # Persistent Public/Detailed Night Log inside expander
     logs_to_show = engine.night_logs if gs["mode"] == "Simulation" else engine.public_night_logs
-    with st.expander(log_title, expanded=False):
+    with st.expander("📁 昨晚行动日志", expanded=False):
         for log in logs_to_show:
             st.write(log)
             
-    # Display the conversation log
-    for line in engine.public_discussion_log:
-        st.text(line)
+    # Display the conversation log with persistent thought expanders
+    for entry in engine.public_discussion_log:
+        speaker = entry["speaker"]
+        thought = entry.get("thought", "")
+        statement = entry["statement"]
+        
+        if gs["mode"] == "Simulation" and thought:
+            with st.expander(f"💭 玩家 {speaker} 的思考过程", expanded=False):
+                st.write(thought)
+        st.write(f"【玩家 {speaker}】 说：\"{statement}\"")
         
     speaker_order = gs["speaking_order"]
     idx = gs["speaker_idx"]
@@ -344,9 +359,11 @@ elif gs["stage"] == "day_speaking":
                     else:
                         # Save inputs
                         engine.private_thoughts[active_speaker].append(f"轮次 {round_num}: {thought_input}")
-                        prefix = f"【玩家 {active_speaker} (你)】 说："
-                        full_statement = f"{prefix}\"{statement_input}\""
-                        engine.public_discussion_log.append(full_statement)
+                        engine.public_discussion_log.append({
+                            "speaker": f"{active_speaker} (你)",
+                            "thought": thought_input,
+                            "statement": statement_input
+                        })
                         
                         player.add_message("user", f"第 {round_num} 轮发言，目前的公共讨论记录：\n{engine.format_discussion_so_far()}\n\n轮到你发言。")
                         player.add_message("model", statement_input)
@@ -355,36 +372,70 @@ elif gs["stage"] == "day_speaking":
                         gs["speaker_idx"] += 1
                         st.rerun()
         else:
-            # LLM player turn to speak
-            if not gs.get("has_spoken", False):
-                st.info(f"⏳ 正在等待 【玩家 {active_speaker}】 思考并组织语言...")
-                with st.spinner("思考中..."):
-                    statement = engine.run_day_speaking_turn(active_speaker, round_num)
-                    gs["current_statement"] = statement
-                    gs["has_spoken"] = True
+            # LLM player turn to speak (Phase-based execution inside a safe container)
+            phase = gs.get("speaking_phase")
+            turn_placeholder = st.container()
+            
+            with turn_placeholder:
+                # Phase 0: Query the LLM for thoughts and statements
+                if phase is None:
+                    st.info(f"⏳ 正在等待 【玩家 {active_speaker}】 思考并组织语言...")
+                    with st.spinner("思考中..."):
+                        thought, statement = engine.run_day_speaking_turn(active_speaker, round_num)
+                        gs["current_thought"] = thought
+                        gs["current_statement"] = statement
+                        
+                        if gs["mode"] == "Simulation":
+                            gs["speaking_phase"] = "stream_thought"
+                        else:
+                            gs["speaking_phase"] = "stream_statement"
+                        st.rerun()
+                        
+                # Phase 1: Stream the private thoughts (Simulation/Observer mode only)
+                elif phase == "stream_thought":
+                    st.info(f"💭 正在思考中...")
+                    
+                    # Open the expander and stream inside it
+                    with st.expander(f"💭 玩家 {active_speaker} 的思考过程", expanded=True):
+                        def stream_thought_char():
+                            for char in gs["current_thought"]:
+                                yield char
+                                time.sleep(0.01)
+                        st.write_stream(stream_thought_char)
+                    
+                    gs["speaking_phase"] = "stream_statement"
                     st.rerun()
-            else:
-                statement = gs.get("current_statement", "")
-                
-                # Typewriter animation
-                prefix = f"【玩家 {active_speaker}】 说："
-                st.write(prefix)
-                
-                def stream_char():
-                    for char in f"\"{statement}\"":
-                        yield char
-                        time.sleep(0.02)
-                st.write_stream(stream_char)
-                
-                # Log statement publicly in session log
-                full_statement = f"{prefix}\"{statement}\""
-                engine.public_discussion_log.append(full_statement)
-                
-                # Reset turn state and advance
-                gs["has_spoken"] = False
-                gs["current_statement"] = ""
-                gs["speaker_idx"] += 1
-                st.rerun()
+                    
+                # Phase 2: Collapse thought and stream public statement
+                elif phase == "stream_statement":
+                    if gs["mode"] == "Simulation":
+                        # Collapsed thinking expander containing the static full thought
+                        with st.expander(f"💭 玩家 {active_speaker} 的思考过程", expanded=False):
+                            st.write(gs["current_thought"])
+                            
+                    # Stream public statement
+                    prefix = f"【玩家 {active_speaker}】 说："
+                    st.write(prefix)
+                    
+                    def stream_statement_char():
+                        for char in f"\"{gs['current_statement']}\"":
+                            yield char
+                            time.sleep(0.02)
+                    st.write_stream(stream_statement_char)
+                    
+                    # Append structured statement to discussion log
+                    engine.public_discussion_log.append({
+                        "speaker": str(active_speaker),
+                        "thought": gs["current_thought"],
+                        "statement": gs["current_statement"]
+                    })
+                    
+                    # Advance speaker index and reset phases
+                    gs["speaking_phase"] = None
+                    gs["current_thought"] = ""
+                    gs["current_statement"] = ""
+                    gs["speaker_idx"] += 1
+                    st.rerun()
     else:
         # All players have spoken in this round
         gs["speaker_idx"] = 0
@@ -399,17 +450,16 @@ elif gs["stage"] == "voting":
     st.subheader("🗳️ 投票淘汰阶段")
     st.write("白天的讨论已经结束。请各位玩家写下内心想法，并投出你神圣的一票。")
     
-    # Persistent Public/Detailed Night Log
-    log_title = "📁 昨晚行动日志 (绝密揭晓)" if gs["mode"] == "Simulation" else "📁 昨晚公共行动简报 (无剧透)"
+    # Persistent Public/Detailed Night Log inside expander
     logs_to_show = engine.night_logs if gs["mode"] == "Simulation" else engine.public_night_logs
-    with st.expander(log_title, expanded=False):
+    with st.expander("📁 昨晚行动日志", expanded=False):
         for log in logs_to_show:
             st.write(log)
             
     # Display the complete discussion log
     with st.expander("显示完整对话记录以供查阅"):
-        for line in engine.public_discussion_log:
-            st.text(line)
+        for entry in engine.public_discussion_log:
+            st.write(f"【玩家 {entry['speaker']}】 说：\"{entry['statement']}\"")
 
     human_id = gs["human_id"]
     if human_id is not None:

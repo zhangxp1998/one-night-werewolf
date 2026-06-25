@@ -8,7 +8,11 @@ DECK_ROLES = ["Werewolf", "Werewolf", "Minion", "Seer", "Robber", "Troublemaker"
 
 # LLM parameters
 DEFAULT_TEMP = 0.8
-GEMINI_MODEL = "gemini-3.5-flash"  # You can adjust this to "gemini-2.0-flash" if needed
+GEMINI_MODEL = "gemini-3.5-flash"
+
+# Model thinking level: "OFF", "MINIMAL", "LOW", "MEDIUM", "HIGH"
+DEFAULT_THINKING_LEVEL = "MEDIUM"
 
 # Night action configuration: True to query LLMs, False to run programmatically (random choices)
-LLM_DRIVEN_NIGHT_ACTIONS = True
+# Disabled by default
+LLM_DRIVEN_NIGHT_ACTIONS = False

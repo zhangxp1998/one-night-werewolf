@@ -411,7 +411,10 @@ class OneNightEngine:
 
     def format_discussion_so_far(self) -> str:
         """Formats the public dialogue history for presentation to players."""
-        return "\n".join(self.public_discussion_log)
+        lines = []
+        for entry in self.public_discussion_log:
+            lines.append(f"【玩家 {entry['speaker']}】 说: \"{entry['statement']}\"")
+        return "\n".join(lines)
 
     def run_day_speaking_turn(self, p_id: int, round_num: int):
         """Orchestration step for a single player's speech in a round."""
@@ -428,7 +431,7 @@ class OneNightEngine:
         player.add_message("user", f"第 {round_num} 轮发言，目前的公共讨论记录：\n{context_str}\n\n轮到你发言。")
         player.add_message("model", statement)
         
-        return statement
+        return thought, statement
 
     def run_voting_step_ai_only(self, human_id: int = None, human_vote: int = None, human_thought: str = "") -> dict:
         """Runs the simultaneous voting for all AI players. Combines it with human input if applicable."""

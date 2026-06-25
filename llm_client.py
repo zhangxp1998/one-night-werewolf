@@ -162,11 +162,18 @@ class LLMPlayer:
             )
         )
 
+        thinking_level = config.DEFAULT_THINKING_LEVEL
+        if thinking_level == "OFF":
+            thinking_config = types.ThinkingConfig(thinking_budget=0)
+        else:
+            thinking_config = types.ThinkingConfig(thinking_level=thinking_level)
+
         config_dict = {
             "system_instruction": self.system_instruction,
             "temperature": self.temp,
             "response_mime_type": "application/json",
             "response_schema": DayStatement,
+            "thinking_config": thinking_config,
         }
 
         response = generate_content_with_retry(contents, config_dict)
@@ -189,11 +196,18 @@ class LLMPlayer:
         请根据你的角色技能，输出你的夜间行动选择。
         """
         
+        thinking_level = config.DEFAULT_THINKING_LEVEL
+        if thinking_level == "OFF":
+            thinking_config = types.ThinkingConfig(thinking_budget=0)
+        else:
+            thinking_config = types.ThinkingConfig(thinking_level=thinking_level)
+
         config_dict = {
             "system_instruction": self.system_instruction,
             "temperature": 0.2, # Lower temp for logical night actions
             "response_mime_type": "application/json",
             "response_schema": schema,
+            "thinking_config": thinking_config,
         }
         
         contents = [types.Content(role="user", parts=[types.Part.from_text(text=user_prompt)])]
@@ -223,11 +237,18 @@ class LLMPlayer:
             )
         )
 
+        thinking_level = config.DEFAULT_THINKING_LEVEL
+        if thinking_level == "OFF":
+            thinking_config = types.ThinkingConfig(thinking_budget=0)
+        else:
+            thinking_config = types.ThinkingConfig(thinking_level=thinking_level)
+
         config_dict = {
             "system_instruction": self.system_instruction,
             "temperature": self.temp,
             "response_mime_type": "application/json",
             "response_schema": VoteAction,
+            "thinking_config": thinking_config,
         }
 
         response = generate_content_with_retry(contents, config_dict)
