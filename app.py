@@ -52,6 +52,11 @@ def restart_game():
         "has_spoken": False,
         "current_statement": ""
     }
+    # Clean up temporary night choice states
+    if "werewolf_c1" in st.session_state:
+        del st.session_state.werewolf_c1
+    if "minion_c1" in st.session_state:
+        del st.session_state.minion_c1
 
 # ----------------- UI CONTROLS (SETUP) -----------------
 if st.session_state.game_state["stage"] == "setup":
@@ -77,7 +82,7 @@ if st.session_state.game_state["stage"] == "setup":
         st.session_state.game_state["human_id"] = human_id
         st.session_state.engine.setup_game(human_player_id=human_id)
         
-        # Determine randomized speaking order starting from a random index S, then wrapping around
+        # Determine randomized speaking order starting from S, then wrapping around
         start_idx = random.randint(1, 6)
         order = [((start_idx - 1 + i) % 6) + 1 for i in range(6)]
         st.session_state.game_state["speaking_order"] = order
@@ -99,8 +104,9 @@ def is_role_human(role_name: str) -> bool:
 if gs["stage"] == "night":
     st.subheader("🌙 夜间行动阶段")
     
-    # Display the public night logs so far (anti-spoiler)
-    for log in engine.public_night_logs:
+    # Display the public/detailed night logs so far
+    logs_to_show = engine.night_logs if gs["mode"] == "Simulation" else engine.public_night_logs
+    for log in logs_to_show:
         st.write(log)
         
     step = gs["night_step"]
@@ -110,12 +116,26 @@ if gs["stage"] == "night":
         werewolves = [p_id for p_id, role in engine.original_player_roles.items() if role == "Werewolf"]
         if len(werewolves) == 1 and werewolves[0] == gs["human_id"]:
             # Human lone wolf choice
-            st.info("🐺 你是场上唯一的独狼。请选择你要查看的一张中央底牌：")
-            center_choice = st.radio("中央牌选择：", [0, 1, 2], horizontal=True)
-            if st.button("确认查看"):
-                engine.night_werewolf(center_choice=center_choice)
-                gs["night_step"] = 1
-                st.rerun()
+            if "werewolf_c1" in st.session_state:
+                c1 = st.session_state.werewolf_c1
+                st.info("🐺 你查看的第一张中央底牌是【狼人】牌！恭喜你获得翻看第二张中央牌的特权。请选择：")
+                center_choice_2 = st.radio("选择第二张中央牌：", [i for i in [0, 1, 2] if i != c1], horizontal=True)
+                if st.button("确认查看第二张"):
+                    engine.night_werewolf(choice1=c1, choice2=center_choice_2)
+                    del st.session_state.werewolf_c1
+                    gs["night_step"] = 1
+                    st.rerun()
+            else:
+                st.info("🐺 你是场上唯一的独狼。请选择你要查看的一张中央底牌：")
+                center_choice = st.radio("中央牌选择：", [0, 1, 2], horizontal=True)
+                if st.button("确认查看"):
+                    status = engine.night_werewolf(choice1=center_choice)
+                    if status == "needs_second_choice":
+                        st.session_state.werewolf_c1 = center_choice
+                        st.rerun()
+                    else:
+                        gs["night_step"] = 1
+                        st.rerun()
         else:
             # AI lone wolf, 2 wolves, or 0 wolves
             engine.night_werewolf()
@@ -124,9 +144,35 @@ if gs["stage"] == "night":
             
     # 1. Minion Step (爪牙)
     elif step == 1:
-        engine.night_minion()
-        gs["night_step"] = 2
-        st.rerun()
+        minion_players = [p_id for p_id, role in engine.original_player_roles.items() if role == "Minion"]
+        werewolf_players = [p_id for p_id, role in engine.original_player_roles.items() if role == "Werewolf"]
+        
+        # If minion is human and there are no werewolves -> promoted to wolf and gets card choices
+        if minion_players and minion_players[0] == gs["human_id"] and not werewolf_players:
+            if "minion_c1" in st.session_state:
+                c1 = st.session_state.minion_c1
+                st.info("🐺 由于场上没有狼人，你已晋升为【狼人】！你翻开的第一张中央牌是【狼人】牌，你可以继续翻第二张牌。请选择：")
+                center_choice_2 = st.radio("选择第二张中央牌：", [i for i in [0, 1, 2] if i != c1], horizontal=True)
+                if st.button("确认查看第二张"):
+                    engine.night_minion(choice1=c1, choice2=center_choice_2)
+                    del st.session_state.minion_c1
+                    gs["night_step"] = 2
+                    st.rerun()
+            else:
+                st.info("🐺 由于场上没有其他玩家是狼人，你已晋升为【狼人】！请选择你要翻看的一张中央底牌：")
+                center_choice = st.radio("中央牌选择：", [0, 1, 2], horizontal=True)
+                if st.button("确认查看"):
+                    status = engine.night_minion(choice1=center_choice)
+                    if status == "needs_second_choice":
+                        st.session_state.minion_c1 = center_choice
+                        st.rerun()
+                    else:
+                        gs["night_step"] = 2
+                        st.rerun()
+        else:
+            engine.night_minion()
+            gs["night_step"] = 2
+            st.rerun()
         
     # 2. Mason Step (守夜人)
     elif step == 2:
@@ -251,9 +297,11 @@ if gs["stage"] == "night":
 elif gs["stage"] == "day_speaking":
     st.subheader(f"💬 白天讨论发言阶段 - 第 {gs['round']} / 3 轮")
     
-    # Persistent Public Night Log
-    with st.expander("📁 昨晚公共行动简报 (无剧透)", expanded=False):
-        for log in engine.public_night_logs:
+    # Persistent Public/Detailed Night Log
+    log_title = "📁 昨晚行动日志 (绝密揭晓)" if gs["mode"] == "Simulation" else "📁 昨晚公共行动简报 (无剧透)"
+    logs_to_show = engine.night_logs if gs["mode"] == "Simulation" else engine.public_night_logs
+    with st.expander(log_title, expanded=False):
+        for log in logs_to_show:
             st.write(log)
             
     # Display the conversation log
@@ -283,7 +331,7 @@ elif gs["stage"] == "day_speaking":
                     st.write("你的夜间消息：")
                     # Display messages containing night results (usually the last user messages)
                     for m in player.history:
-                        if m.role == "user" and ("夜间" in m.parts[0].text or "你在夜间" in m.parts[0].text):
+                        if m.role == "user" and ("夜间" in m.parts[0].text or "你在夜间" in m.parts[0].text or "选择查看" in m.parts[0].text or "晋升" in m.parts[0].text):
                             st.write(f"- {m.parts[0].text}")
                             
                 # Speech Inputs
@@ -351,9 +399,11 @@ elif gs["stage"] == "voting":
     st.subheader("🗳️ 投票淘汰阶段")
     st.write("白天的讨论已经结束。请各位玩家写下内心想法，并投出你神圣的一票。")
     
-    # Persistent Public Night Log
-    with st.expander("📁 昨晚公共行动简报 (无剧透)", expanded=False):
-        for log in engine.public_night_logs:
+    # Persistent Public/Detailed Night Log
+    log_title = "📁 昨晚行动日志 (绝密揭晓)" if gs["mode"] == "Simulation" else "📁 昨晚公共行动简报 (无剧透)"
+    logs_to_show = engine.night_logs if gs["mode"] == "Simulation" else engine.public_night_logs
+    with st.expander(log_title, expanded=False):
+        for log in logs_to_show:
             st.write(log)
             
     # Display the complete discussion log

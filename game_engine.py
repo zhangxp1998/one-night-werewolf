@@ -21,8 +21,8 @@ class OneNightEngine:
         self.current_center_cards: list[str] = []
         
         # Game Logs
-        self.night_logs: list[str] = []         # Detailed spoiler log for game-over screen
-        self.public_night_logs: list[str] = []  # Generic progress log for gameplay screen
+        self.night_logs: list[str] = []         # Detailed spoiler log for end-game and simulation
+        self.public_night_logs: list[str] = []  # Generic narrator script for gameplay
         self.public_discussion_log: list[str] = []
         self.private_thoughts: dict[int, list[str]] = {i: [] for i in range(1, self.player_count + 1)}
         
@@ -62,101 +62,205 @@ class OneNightEngine:
 
     # ----------------- DISCRETE NIGHT PHASE STEPS -----------------
     
-    def night_werewolf(self, center_choice: int = None) -> bool:
-        """Runs Werewolf actions. Returns True if human lone wolf choice is needed."""
+    def night_werewolf(self, choice1: int = None, choice2: int = None) -> str | bool:
+        """Runs Werewolf actions.
+        Returns:
+            True: if human lone wolf needs first center choice.
+            'needs_second_choice': if human lone wolf flipped a Werewolf card and needs a second choice.
+            False: if step is done.
+        """
         werewolf_players = [p_id for p_id, role in self.original_player_roles.items() if role == "Werewolf"]
-        self.public_night_logs.append("🐺 狼人，请睁眼...")
+        self.public_night_logs.append("🐺 狼人，请睁眼确认彼此同伴...")
         
         if len(werewolf_players) == 2:
             p1, p2 = werewolf_players
             self.players[p1].add_message("user", f"夜间你与另一名狼人 {self.players[p2].player_name} 确认了彼此的身份。")
             self.players[p2].add_message("user", f"夜间你与另一名狼人 {self.players[p1].player_name} 确认了彼此的身份。")
             self.night_logs.append(f"狼人 【玩家 {p1}】 和 【玩家 {p2}】 互相确认了身份。")
-            self.public_night_logs.append("狼人们睁眼并确认了彼此的同伴身份。")
             return False
+            
         elif len(werewolf_players) == 1:
             lone_wolf_id = werewolf_players[0]
             lone_wolf = self.players[lone_wolf_id]
             
             if lone_wolf.is_human:
-                if center_choice is None:
-                    self.night_logs.append(f"只有一名独狼：【玩家 {lone_wolf_id}】。等待其选择查看中央底牌。")
-                    self.public_night_logs.append("独狼玩家正在选择查看中央底牌...")
+                if choice1 is None:
                     return True
-                choice = center_choice
-            else:
-                if config.LLM_DRIVEN_NIGHT_ACTIONS:
-                    action = lone_wolf.query_night_action(DrunkAction)  # reuse index choice
-                    choice = action.get("center_index", 0)
+                
+                # Check first card
+                r1 = self.current_center_cards[choice1]
+                r1_cn = self.roles_db[r1]["name_cn"]
+                
+                if r1 == "Werewolf" and choice2 is None:
+                    return "needs_second_choice"
+                
+                # Done with choices
+                if choice2 is not None:
+                    r2 = self.current_center_cards[choice2]
+                    r2_cn = self.roles_db[r2]["name_cn"]
+                    lone_wolf.add_message(
+                        "user", 
+                        f"夜间睁眼，你没有看到其他狼人。你查看了中央牌 {choice1}，它是【{r1_cn}】。因为翻开的是狼人牌，你继续查看了中央牌 {choice2}，它是【{r2_cn}】。"
+                    )
+                    self.night_logs.append(f"独狼 【玩家 {lone_wolf_id}】 查看了中央牌 {choice1} ({r1_cn})，并因为是狼人牌，继续查看了中央牌 {choice2} ({r2_cn})。")
                 else:
-                    choice = random.randint(0, 2)
+                    lone_wolf.add_message(
+                        "user", 
+                        f"夜间睁眼，你没有看到其他狼人。你查看了中央牌 {choice1}，它是：【{r1_cn}】。"
+                    )
+                    self.night_logs.append(f"独狼 【玩家 {lone_wolf_id}】 查看了中央牌 {choice1}，角色是：{r1_cn}。")
+                return False
+            else:
+                # AI lone wolf
+                if config.LLM_DRIVEN_NIGHT_ACTIONS:
+                    action = lone_wolf.query_night_action(DrunkAction)  # pick index
+                    c1 = action.get("center_index", 0)
+                else:
+                    c1 = random.randint(0, 2)
                     
-            choice = max(0, min(2, choice))
-            revealed_role = self.current_center_cards[choice]
-            revealed_role_cn = self.roles_db[revealed_role]["name_cn"]
-            lone_wolf.add_message("user", f"夜间睁眼，你没有看到其他狼人。你查看了中央牌 {choice}，它是：【{revealed_role_cn}】。")
-            
-            self.night_logs.append(f"独狼 【玩家 {lone_wolf_id}】 查看了中央牌 {choice}，角色是：{revealed_role_cn}。")
-            self.public_night_logs.append("独狼睁眼，并选择查看了一张中央牌。")
-            return False
+                c1 = max(0, min(2, c1))
+                r1 = self.current_center_cards[c1]
+                r1_cn = self.roles_db[r1]["name_cn"]
+                
+                if r1 == "Werewolf":
+                    # AI gets second choice
+                    c2 = random.choice([i for i in [0, 1, 2] if i != c1])
+                    r2 = self.current_center_cards[c2]
+                    r2_cn = self.roles_db[r2]["name_cn"]
+                    lone_wolf.add_message(
+                        "user", 
+                        f"夜间睁眼，你没有看到其他狼人。你查看了中央牌 {c1}，它是【{r1_cn}】。因为翻开的是狼人牌，你继续查看了中央牌 {c2}，它是【{r2_cn}】。"
+                    )
+                    self.night_logs.append(f"独狼 【玩家 {lone_wolf_id}】 查看了中央牌 {c1} ({r1_cn})，并因为是狼人牌，继续查看了中央牌 {c2} ({r2_cn})。")
+                else:
+                    lone_wolf.add_message(
+                        "user", 
+                        f"夜间睁眼，你没有看到其他狼人。你查看了中央牌 {c1}，它是：【{r1_cn}】。"
+                    )
+                    self.night_logs.append(f"独狼 【玩家 {lone_wolf_id}】 查看了中央牌 {c1}，角色是：{r1_cn}。")
+                return False
         else:
             self.night_logs.append("场上没有狼人睁眼。")
-            self.public_night_logs.append("场上没有狼人睁眼。")
             return False
 
-    def night_minion(self) -> bool:
-        """Runs Minion action. Returns False."""
+    def night_minion(self, choice1: int = None, choice2: int = None) -> str | bool:
+        """Runs Minion action.
+        Returns:
+            True: if human promoted minion needs first center choice.
+            'needs_second_choice': if human promoted minion needs second choice.
+            False: if step is done.
+        """
         minion_players = [p_id for p_id, role in self.original_player_roles.items() if role == "Minion"]
         werewolf_players = [p_id for p_id, role in self.original_player_roles.items() if role == "Werewolf"]
-        self.public_night_logs.append("🟡 爪牙，请睁眼...")
-        if minion_players:
-            m_id = minion_players[0]
-            minion = self.players[m_id]
-            if werewolf_players:
-                wolves_str = ", ".join([self.players[w].player_name for w in werewolf_players])
-                minion.add_message("user", f"夜间睁眼，主持人向你指示：场上的狼人是 {wolves_str}。")
-                self.night_logs.append(f"爪牙 【玩家 {m_id}】 确认了狼人队友：{wolves_str}。")
-            else:
-                minion.add_message("user", "夜间睁眼，主持人向你指示：场上没有狼人被分发（均在中央）。")
-                self.night_logs.append(f"爪牙 【玩家 {m_id}】 睁眼，但得知场上没有狼人。")
-            self.public_night_logs.append("爪牙睁眼，主持人已向其示意了场上的狼人队友。")
-        else:
+        self.public_night_logs.append("🟡 爪牙，请睁眼确认狼人同伴...")
+        
+        if not minion_players:
             self.night_logs.append("场上没有爪牙。")
-            self.public_night_logs.append("场上没有爪牙。")
-        return False
+            return False
+            
+        m_id = minion_players[0]
+        minion = self.players[m_id]
+        
+        if werewolf_players:
+            # Normal minion, no promotion
+            wolves_str = ", ".join([self.players[w].player_name for w in werewolf_players])
+            minion.add_message("user", f"夜间睁眼，主持人向你指示：场上的狼人是 {wolves_str}。")
+            self.night_logs.append(f"爪牙 【玩家 {m_id}】 确认了狼人队友：{wolves_str}。")
+            return False
+        else:
+            # Promoted minion (acting as werewolf because there are no other wolves)
+            # We do NOT mutate their current role card in current_player_roles.
+            if choice1 is None:
+                minion.add_message(
+                    "user", 
+                    "由于场上没有其他玩家是狼人（狼人牌均在中央），你已获得【狼人】阵营的独立获胜条件！你的目标是活下去且不被处决。你获得了查看中央底牌的特殊能力。"
+                )
+                self.night_logs.append(f"爪牙 【玩家 {m_id}】 睁眼发现场上无狼人，获得查看中央底牌特权。")
+                
+            if minion.is_human:
+                if choice1 is None:
+                    return True
+                
+                # Check first card
+                r1 = self.current_center_cards[choice1]
+                r1_cn = self.roles_db[r1]["name_cn"]
+                
+                if r1 == "Werewolf" and choice2 is None:
+                    return "needs_second_choice"
+                    
+                if choice2 is not None:
+                    r2 = self.current_center_cards[choice2]
+                    r2_cn = self.roles_db[r2]["name_cn"]
+                    minion.add_message(
+                        "user", 
+                        f"你选择查看中央牌 {choice1}，它是【{r1_cn}】。因为翻开的是狼人牌，你继续查看了中央牌 {choice2}，它是【{r2_cn}】。"
+                    )
+                    self.night_logs.append(f"独立获胜的爪牙 【玩家 {m_id}】 查看了中央牌 {choice1} ({r1_cn})，并因为是狼人牌，继续查看了中央牌 {choice2} ({r2_cn})。")
+                else:
+                    minion.add_message(
+                        "user", 
+                        f"你选择查看中央牌 {choice1}，它是：【{r1_cn}】。"
+                    )
+                    self.night_logs.append(f"独立获胜的爪牙 【玩家 {m_id}】 查看了中央牌 {choice1}，角色是：{r1_cn}。")
+                return False
+            else:
+                # AI promoted minion
+                if config.LLM_DRIVEN_NIGHT_ACTIONS:
+                    action = minion.query_night_action(DrunkAction)
+                    c1 = action.get("center_index", 0)
+                else:
+                    c1 = random.randint(0, 2)
+                    
+                c1 = max(0, min(2, c1))
+                r1 = self.current_center_cards[c1]
+                r1_cn = self.roles_db[r1]["name_cn"]
+                
+                if r1 == "Werewolf":
+                    c2 = random.choice([i for i in [0, 1, 2] if i != c1])
+                    r2 = self.current_center_cards[c2]
+                    r2_cn = self.roles_db[r2]["name_cn"]
+                    minion.add_message(
+                        "user", 
+                        f"你选择查看中央牌 {c1}，它是【{r1_cn}】。因为翻开的是狼人牌，你继续查看了中央牌 {c2}，它是【{r2_cn}】。"
+                    )
+                    self.night_logs.append(f"独立获胜的爪牙 【玩家 {m_id}】 查看了中央牌 {c1} ({r1_cn})，并因为是狼人牌，继续查看了中央牌 {c2} ({r2_cn})。")
+                else:
+                    minion.add_message(
+                        "user", 
+                        f"你选择查看中央牌 {c1}，它是：【{r1_cn}】。"
+                    )
+                    self.night_logs.append(f"独立获胜的爪牙 【玩家 {m_id}】 查看了中央牌 {c1}，角色是：{r1_cn}。")
+                return False
 
     def night_mason(self) -> bool:
         """Runs Mason action. Returns False."""
         mason_players = [p_id for p_id, role in self.original_player_roles.items() if role == "Mason"]
-        self.public_night_logs.append("🛡️ 守夜人，请睁眼...")
+        self.public_night_logs.append("🛡️ 守夜人，请睁眼确认伙伴...")
+        
         if len(mason_players) == 2:
             p1, p2 = mason_players
             self.players[p1].add_message("user", f"夜间睁眼，你看到了另一名守夜人伙伴 {self.players[p2].player_name}。")
             self.players[p2].add_message("user", f"夜间睁眼，你看到了另一名守夜人伙伴 {self.players[p1].player_name}。")
             self.night_logs.append(f"守夜人 【玩家 {p1}】 和 【玩家 {p2}】 确认了对方身份。")
-            self.public_night_logs.append("守夜人们睁眼确认了伙伴。")
         elif len(mason_players) == 1:
             p_id = mason_players[0]
             self.players[p_id].add_message("user", "夜间睁眼，你没有看到其他守夜人，这说明另一张守夜人牌在中央牌堆。")
             self.night_logs.append(f"唯一在场的守夜人 【玩家 {p_id}】 睁眼，确认另一张守夜人牌在中央。")
-            self.public_night_logs.append("守夜人睁眼，但场上只有一名守夜人。")
         else:
             self.night_logs.append("场上没有守夜人。")
-            self.public_night_logs.append("场上没有守夜人。")
         return False
 
     def night_seer(self, action_data: dict = None) -> bool:
         """Runs Seer actions. Returns True if human Seer choice is needed."""
         seer_players = [p_id for p_id, role in self.original_player_roles.items() if role == "Seer"]
         self.public_night_logs.append("👁️ 预言家，请睁眼并行动...")
+        
         if seer_players:
             s_id = seer_players[0]
             seer = self.players[s_id]
             
             if seer.is_human:
                 if action_data is None:
-                    self.night_logs.append(f"预言家 【玩家 {s_id} (你)】 行动中，等待玩家选择...")
-                    self.public_night_logs.append("预言家正在选择占卜目标...")
                     return True
             else:
                 if config.LLM_DRIVEN_NIGHT_ACTIONS:
@@ -177,7 +281,6 @@ class OneNightEngine:
                     target_role_cn = self.roles_db[target_role]["name_cn"]
                     seer.add_message("user", f"你在夜间选择查看玩家 {target_id} 的身份。结果是：【{target_role_cn}】。")
                     self.night_logs.append(f"预言家 【玩家 {s_id}】 查看了玩家 {target_id} 的底牌，发现是：{target_role_cn}。")
-                    self.public_night_logs.append(f"预言家睁眼，并选择查看了一名玩家的底牌。")
                 else:
                     t_type = "center"  # fallback
                     
@@ -190,24 +293,21 @@ class OneNightEngine:
                 r2_cn = self.roles_db[self.current_center_cards[idx2]]["name_cn"]
                 seer.add_message("user", f"你在夜间选择查看中央牌 {idx1} 和 中央牌 {idx2}。结果是：中央 {idx1} 为【{r1_cn}】，中央 {idx2} 为【{r2_cn}】。")
                 self.night_logs.append(f"预言家 【玩家 {s_id}】 查看了中央牌 {idx1} ({r1_cn}) 和 中央牌 {idx2} ({r2_cn})。")
-                self.public_night_logs.append(f"预言家睁眼，并选择查看了两张中央牌。")
         else:
             self.night_logs.append("场上没有预言家。")
-            self.public_night_logs.append("场上没有预言家。")
         return False
 
     def night_robber(self, target_id: int = None) -> bool:
         """Runs Robber action. Returns True if human choice is needed."""
         robber_players = [p_id for p_id, role in self.original_player_roles.items() if role == "Robber"]
         self.public_night_logs.append("💰 强盗，请睁眼并行动...")
+        
         if robber_players:
             r_id = robber_players[0]
             robber = self.players[r_id]
             
             if robber.is_human:
                 if target_id is None:
-                    self.night_logs.append(f"强盗 【玩家 {r_id} (你)】 行动中，等待玩家选择交换目标...")
-                    self.public_night_logs.append("强盗正在选择目标进行偷取...")
                     return True
             else:
                 if config.LLM_DRIVEN_NIGHT_ACTIONS:
@@ -233,24 +333,21 @@ class OneNightEngine:
                 f"你在夜间拿走了玩家 {target_id} 的身份牌并与之交换，把你的强盗牌给了ta。你查看了新身份，你现在是：【{target_role_cn}】。"
             )
             self.night_logs.append(f"强盗 【玩家 {r_id}】 偷取了 【玩家 {target_id}】 的底牌，自身变成：{target_role_cn}。")
-            self.public_night_logs.append(f"强盗睁眼，拿走并与之交换了一名玩家的身份牌。")
         else:
             self.night_logs.append("场上没有强盗。")
-            self.public_night_logs.append("场上没有强盗。")
         return False
 
     def night_troublemaker(self, p1: int = None, p2: int = None) -> bool:
         """Runs Troublemaker action. Returns True if human choice is needed."""
         tm_players = [p_id for p_id, role in self.original_player_roles.items() if role == "Troublemaker"]
         self.public_night_logs.append("😈 捣蛋鬼，请睁眼并行动...")
+        
         if tm_players:
             t_id = tm_players[0]
             tm = self.players[t_id]
             
             if tm.is_human:
                 if p1 is None or p2 is None:
-                    self.night_logs.append(f"捣蛋鬼 【玩家 {t_id} (你)】 行动中，等待选择交换的两个玩家...")
-                    self.public_night_logs.append("捣蛋鬼正在选择两位玩家以交换他们的卡牌...")
                     return True
             else:
                 if config.LLM_DRIVEN_NIGHT_ACTIONS:
@@ -273,24 +370,21 @@ class OneNightEngine:
             
             tm.add_message("user", f"你在夜间成功交换了玩家 {p1} 和玩家 {p2} 的身份牌（你并未查看卡牌内容）。")
             self.night_logs.append(f"捣蛋鬼 【玩家 {t_id}】 交换了 【玩家 {p1}】 和 【玩家 {p2}】 的牌。")
-            self.public_night_logs.append("捣蛋鬼睁眼，暗中交换了另外两位玩家的身份牌。")
         else:
             self.night_logs.append("场上没有捣蛋鬼。")
-            self.public_night_logs.append("场上没有捣蛋鬼。")
         return False
 
     def night_drunk(self, center_idx: int = None) -> bool:
         """Runs Drunk action. Returns True if human choice is needed."""
         drunk_players = [p_id for p_id, role in self.original_player_roles.items() if role == "Drunk"]
         self.public_night_logs.append("🍺 酒鬼，请睁眼并行动...")
+        
         if drunk_players:
             d_id = drunk_players[0]
             drunk = self.players[d_id]
             
             if drunk.is_human:
                 if center_idx is None:
-                    self.night_logs.append(f"酒鬼 【玩家 {d_id} (你)】 行动中，等待选择一张中央牌...")
-                    self.public_night_logs.append("酒鬼正在选择一张中央牌以进行闭眼交换...")
                     return True
             else:
                 if config.LLM_DRIVEN_NIGHT_ACTIONS:
@@ -309,10 +403,8 @@ class OneNightEngine:
             
             drunk.add_message("user", f"你在夜间将你自己的身份牌与中央牌 {center_idx} 进行了交换（你未查看新牌内容）。")
             self.night_logs.append(f"酒鬼 【玩家 {d_id}】 将自己的牌换成了中央牌 {center_idx}。")
-            self.public_night_logs.append("酒鬼睁眼，暗中拿自己的牌与一张中央牌进行了闭眼交换。")
         else:
             self.night_logs.append("场上没有酒鬼。")
-            self.public_night_logs.append("场上没有酒鬼。")
         return False
 
     # ----------------- DAY DISCUSSION PHASE -----------------
@@ -384,41 +476,54 @@ class OneNightEngine:
         """Evaluates who wins the game based on the current state and eliminated players."""
         eliminated_ids = vote_result["eliminated"]
         
-        # Find where werewolves are currently (current roles)
+        # Find where werewolves/minions are currently (current roles)
         current_werewolves = [p_id for p_id, role in self.current_player_roles.items() if role == "Werewolf"]
+        current_minions = [p_id for p_id, role in self.current_player_roles.items() if role == "Minion"]
         
         eliminated_roles_cn = []
-        eliminated_werewolf_killed = False
-        
         for p_id in eliminated_ids:
             role = self.current_player_roles[p_id]
             role_cn = self.roles_db[role]["name_cn"]
             eliminated_roles_cn.append({"player": p_id, "role": role_cn, "card_id": role})
-            if role == "Werewolf":
-                eliminated_werewolf_killed = True
 
         winner = ""
         reason = ""
 
-        if not current_werewolves:
-            # No wolves in play (they are all in the center)
-            if len(eliminated_ids) == 0:
-                winner = "Villager"
-                reason = "场上没有狼人，且大家成功达成了平票没有处决任何人。村民阵营胜利！"
-            else:
-                winner = "Werewolf"
-                reason = f"场上没有狼人，但大家投票处决了 【玩家 {eliminated_ids}】。村民阵营误杀无辜，狼人阵营胜利！"
-        else:
-            # Wolves are in play
-            if eliminated_werewolf_killed:
+        if current_werewolves:
+            # Case 1: There is at least one active Werewolf player in play.
+            # Villagers win if any player holding a "Werewolf" card is eliminated.
+            werewolf_killed = any(x["card_id"] == "Werewolf" for x in eliminated_roles_cn)
+            if werewolf_killed:
                 winner = "Villager"
                 reason = f"成功处决了狼人（被处决的玩家是：{', '.join([f'玩家 {x['player']} ({x['role']})' for x in eliminated_roles_cn])}）。村民阵营胜利！"
             else:
+                winner = "Werewolf"
                 if len(eliminated_ids) == 0:
-                    winner = "Werewolf"
-                    reason = "场上有狼人，但大家达成了平票，没有处决任何人。狼人逃脱，狼人阵营胜利！"
+                    reason = "场上有狼人，但大家达成了平票没有处决任何人。狼人逃脱，狼人阵营胜利！"
                 else:
-                    winner = "Werewolf"
-                    reason = f"没有处决任何狼人（被处决的玩家是：{', '.join([f'玩家 {x['player']} ({x['role']})' for x in eliminated_roles_cn])}）。狼人安全逃脱，狼人阵营胜利！"
+                    reason = f"没有处决任何狼人（被处决的玩家是：{', '.join([f'玩家 {x['player']} ({x['role']})' for x in eliminated_roles_cn])}）。狼人逃脱，狼人阵营胜利！"
+        elif current_minions:
+            # Case 2: No active Werewolf in play, but there is an active Minion in play.
+            # In this case (promoted scenario), the Minion acts as the target.
+            # Villagers win if the player holding the "Minion" card is eliminated.
+            minion_killed = any(x["card_id"] == "Minion" for x in eliminated_roles_cn)
+            if minion_killed:
+                winner = "Villager"
+                reason = f"场上没有狼人，但成功处决了爪牙（被处决的玩家是：{', '.join([f'玩家 {x['player']} ({x['role']})' for x in eliminated_roles_cn])}）。村民阵营胜利！"
+            else:
+                winner = "Werewolf"
+                if len(eliminated_ids) == 0:
+                    reason = "场上没有狼人，只有爪牙在场。但大家达成了平票没有处决任何人。爪牙安全，狼人阵营胜利！"
+                else:
+                    reason = f"场上没有狼人，且未处决爪牙（被处决的玩家是：{', '.join([f'玩家 {x['player']} ({x['role']})' for x in eliminated_roles_cn])}）。爪牙安全，狼人阵营胜利！"
+        else:
+            # Case 3: No active Werewolves and no active Minions in play (all Werewolves/Minions are in the center deck).
+            # Villagers win only if they achieve a complete tie where NO ONE is eliminated (everyone gets exactly 1 vote).
+            if len(eliminated_ids) == 0:
+                winner = "Villager"
+                reason = "场上没有狼人和爪牙，且大家成功达成了平票没有处决任何人。村民阵营胜利！"
+            else:
+                winner = "Werewolf"
+                reason = f"场上没有狼人和爪牙，但大家投票处决了 【玩家 {eliminated_ids}】。村民阵营误杀无辜，狼人阵营胜利！"
 
         return winner, reason, eliminated_roles_cn
