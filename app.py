@@ -340,11 +340,17 @@ if gs["stage"] == "night":
         st.rerun()
         
     elif step == 8:
-        if st.button("🌅 睁眼，开始白天讨论"):
+        if st.session_state.get("auto_loop", False):
             gs["stage"] = "day_speaking"
             gs["round"] = 1
             gs["speaker_idx"] = 0
             st.rerun()
+        else:
+            if st.button("🌅 睁眼，开始白天讨论"):
+                gs["stage"] = "day_speaking"
+                gs["round"] = 1
+                gs["speaker_idx"] = 0
+                st.rerun()
 
 # ----------------- DAY DISCUSSION PHASE -----------------
 elif gs["stage"] == "day_speaking":
@@ -531,18 +537,29 @@ elif gs["stage"] == "voting":
                 st.rerun()
     else:
         # Pure simulation mode voting (all AI)
-        if st.button("🗳️ 收集 AI 玩家投票"):
-            with st.spinner("AI 玩家正在秘密投票中..."):
-                vote_result = engine.run_voting_step_ai_only()
-                
-                winner, reason, eliminated_roles_cn = engine.evaluate_winner(vote_result)
-                vote_result["winner"] = winner
-                vote_result["reason"] = reason
-                vote_result["eliminated_roles"] = eliminated_roles_cn
-                
-                gs["vote_result"] = vote_result
-                gs["stage"] = "ended"
-                st.rerun()
+        if st.session_state.get("auto_loop", False):
+            vote_result = engine.run_voting_step_ai_only()
+            winner, reason, eliminated_roles_cn = engine.evaluate_winner(vote_result)
+            vote_result["winner"] = winner
+            vote_result["reason"] = reason
+            vote_result["eliminated_roles"] = eliminated_roles_cn
+            
+            gs["vote_result"] = vote_result
+            gs["stage"] = "ended"
+            st.rerun()
+        else:
+            if st.button("🗳️ 收集 AI 玩家投票"):
+                with st.spinner("AI 玩家正在秘密投票中..."):
+                    vote_result = engine.run_voting_step_ai_only()
+                    
+                    winner, reason, eliminated_roles_cn = engine.evaluate_winner(vote_result)
+                    vote_result["winner"] = winner
+                    vote_result["reason"] = reason
+                    vote_result["eliminated_roles"] = eliminated_roles_cn
+                    
+                    gs["vote_result"] = vote_result
+                    gs["stage"] = "ended"
+                    st.rerun()
 
     # ----------------- GAME OVER / RESULTS -----------------
 elif gs["stage"] == "ended":

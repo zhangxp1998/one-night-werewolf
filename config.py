@@ -1,5 +1,3 @@
-# config.py
-import os
 
 # Game settings
 DEFAULT_PLAYER_COUNT = 6
