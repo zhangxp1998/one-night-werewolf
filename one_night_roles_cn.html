@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>一夜狼角色大全 · 最优策略</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f0f1a;color:#e0e0e0;line-height:1.8}
+.container{max-width:920px;margin:0 auto;padding:20px}
+h1{text-align:center;color:#ffd700;font-size:2em;margin:30px 0 10px}
+.subtitle{text-align:center;color:#666;margin-bottom:30px;font-size:0.9em}
+h2{color:#7eb8da;margin:35px 0 15px;font-size:1.2em;border-bottom:1px solid #2a2a4a;padding-bottom:6px}
+h3{font-size:0.9em;margin:0 0 12px}
+.role-card{background:#1a1a2e;border-radius:14px;margin-bottom:18px;overflow:hidden;border:1px solid #252540;box-shadow:0 2px 8px rgba(0,0,0,0.3)}
+.role-header{padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#1e1e35}
+.role-name{font-size:1.25em;font-weight:bold;color:#fff}
+.role-tags{display:flex;gap:8px;flex-wrap:wrap}
+.tag{font-size:0.75em;padding:3px 10px;border-radius:20px}
+.tag-village{color:#4ecdc4;border:1px solid #4ecdc4}
+.tag-werewolf{color:#ff6b6b;border:1px solid #ff6b6b}
+.tag-independent{color:#a29bfe;border:1px solid #a29bfe}
+.ability{padding:12px 20px;background:#16162a;font-size:0.88em;color:#c0c0c0;border-top:1px solid #252540}
+.ability-label{color:#7eb8da;font-weight:bold;font-size:0.8em;margin-bottom:5px}
+.strategies{padding:14px 20px 18px}
+.strategy-label{color:#ffd700;font-weight:bold;font-size:0.8em;margin-bottom:10px}
+.strategy-list{list-style:none}
+.strategy-list li{padding:7px 0;border-bottom:1px solid #222240;color:#b0b0c0;font-size:0.88em;line-height:1.5}
+.strategy-list li:last-child{border-bottom:none}
+.strategy-list li::before{content:'▸ ';color:#ffd700;margin-right:8px}
+.footer{text-align:center;color:#444;padding:40px;font-size:0.75em}
+.night-box{background:#0f1525;border:1px solid #252540;border-radius:14px;padding:20px;margin:20px 0 30px}
+.night-box p{color:#888;font-size:0.85em;margin-bottom:16px}
+.night-box a{color:#7eb8da}
+.night-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:16px}
+.night-ol{color:#b0b0c0;font-size:0.83em;line-height:2.1;padding-left:22px;margin:0}
+.night-ul{color:#ffd700;font-size:0.9em;margin:2px 0 2px 16px}
+.night-ul li{color:#ffd700}
+.no-wake{color:#888;font-size:0.83em;line-height:2;padding-left:20px;margin:0}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>🐺 一夜狼角色大全 · 最优策略</h1>
+<p class="subtitle">数据来源:one-night.fandom.com · 含基础版 + Daybreak 扩展包 19 个角色</p>
+
+
+<div class="night-box">
+<p>数据来源:<a href="https://one-night.fandom.com/wiki/One_Night_Ultimate_Werewolf" target="_blank">one-night.fandom.com</a> · 主持人按以下顺序依次叫角色睁眼,执行操作后闭眼,全部完成后进入白天讨论。</p>
+<div class="night-grid">
+<div>
+<h3 style="color:#7eb8da">🌙 基础版夜间顺序</h3>
+<ol class="night-ol">
+<li>🐺 <b>狼人</b> - 所有狼人同时睁眼,互相确认</li>
+<li>🟡 <b>爪牙</b> - 爪牙睁眼时,所有狼人竖起大拇指让爪牙看到</li>
+<li>🛡️ <b>守夜人</b> - 两名守夜人互相确认对方身份</li>
+<li>👁️ <b>预言家</b> - 查看1张玩家身份牌,或2张中央身份牌(二选一)</li>
+<li>💰 <b>强盗</b> - 与另一名玩家交换身份牌,然后查看新身份</li>
+<li>😈 <b>捣蛋鬼</b> - 交换两名其他玩家之间的身份牌(不看)</li>
+<li>🍺 <b>酒鬼</b> - 将自己的身份牌与中央身份牌交换(不查看)</li>
+<li>😴 <b>失眠者</b> - 晚间最后,睁眼确认自己的身份牌是否被交换</li>
+</ol>
+<h3 style="color:#ff6b6b;margin-top:20px">🚫 晚上不睁眼的角色</h3>
+<ul class="no-wake">
+<li>村民、猎人、皮匠</li>
+</ul>
+</div>
+<div>
+<h3 style="color:#ff9f43">🌅 Daybreak 扩展顺序(官方 Call Order)</h3>
+<ol class="night-ol">
+<li>🐺 <b>狼人</b> - 所有狼人睁眼确认
+  <ul class="night-ul"><li>🐺 阿尔法狼(子项)- 可将一名非狼人玩家变成狼人</li><li>🌫️ 神秘狼(子项)- 查看一名玩家的身份牌</li><li>🌙 梦狼(子项)- 爪牙睁眼时,所有狼人竖起大拇指(梦狼看不到其他狼人)</li></ul>
+</li>
+<li>🟡 <b>爪牙</b> - 爪牙睁眼时,所有狼人竖起大拇指</li>
+<li>🛡️ <b>守夜人</b> - 互相确认</li>
+<li>👁️ <b>预言家</b> - 查看1张玩家身份牌,或2张中央身份牌(二选一)
+  <ul class="night-ul"><li>⚡ 见习预言家(子项)- 在预言家之后行动,查看1张中央牌</li><li>🔍 超自然调查员(子项)- 查看最多2张中央牌,有非村民则停止</li></ul>
+</li>
+<li>💰 <b>强盗</b> - 交换并查看
+  <ul class="night-ul"><li>🧙 女巫(子项)- 查看1张中央牌,必须与某人交换</li></ul>
+</li>
+<li>😈 <b>捣蛋鬼</b> - 交换两张其他玩家牌</li>
+<li>🍺 <b>酒鬼</b> - 与中央牌交换(不查看)</li>
+<li>😴 <b>失眠者</b> - 夜间最后确认自己的牌</li>
+<li>📋 <b>揭秘者</b> - 翻开一名玩家牌,非村民则翻回</li>
+</ol>
+</div>
+</div>
+</div>
+
+<h2>🐺 狼人阵营</h2>
+<div class="role-card">
+  <div class="role-header">
+    <div class="role-name">Minion</div>
+    <div class="role-tags">
+      <span class="tag tag-werewolf">🐺 狼人阵营</span>
+    </div>
+  </div>
+  <div class="ability"><div class="ability-label">📖 技能</div>
+    <p style="margin:4px 0;color:#c0c0c0">爪牙睁眼时，所有狼人竖起大拇指，让爪牙知道他们是谁。</p>
+    <p style="margin:4px 0;color:#c0c0c0">• 即使爪牙被票死，只要没有狼人被票死，爪牙就和狼人一起获胜。</p>
+    <p style="margin:4px 0;color:#c0c0c0">• 如果场上没有狼人但有爪牙，爪牙必须确保除自己以外的所有人都被票死——基本相当于替狼人打全场，否则村民阵营无法获胜。</p>
+  </div>
+    <div class="strategies">
+      <div class="strategy-label">🧠 最优策略</div>
+      <ul class="strategy-list">
+      <li>爪牙的首要目标是保证狼人存活,因此必须密切关注谁被捣蛋鬼、强盗或女巫换牌了,以及阿尔法狼感染了谁--如果超自然调查员变成了狼人,也要把ta算进队友名单,避免意外票死同伴</li>
+      <li>如果局面太混乱、实在搞不清队友是谁,爪牙可以选择主动求死--这样反而简单,不用费心追踪队友了</li>
+      <li>强盗或失眠者如果换到了爪牙牌但不知道狼人是谁,同理也可以选择自投</li>
+      <li>如果你的牌被换走了(除非你变成了狼人),可以考虑投狼人出局--反正你已经不是爪牙了,不用再替狼队操心了</li>
+      <li>如果有人谎报了换牌操作,贸然站队可能适得其反。只有在你确信捣蛋鬼、女巫等角色所言属实的情况下,才公开你掌握的信息</li>
+      </ul>
+    </div>
+</div>
+<div class="role-card">
+  <div class="role-header">
+    <div class="role-name">Werewolf</div>
+    <div class="role-tags">
+      <span class="tag tag-werewolf">🐺 狼人阵营</span>
+    </div>
+  </div>
+  <div class="ability"><div class="ability-label">📖 技能</div>
+    <p style="margin:4px 0;color:#c0c0c0">狼人睁眼时,和其他狼人一起确认对方身份。独狼规则:如果睁眼时没有看到其他狼人,可以查看一张中央牌。</p>
+  </div>
+    <div class="strategies">
+      <div class="strategy-label">🧠 最优策略</div>
+      <ul class="strategy-list">
+      <li>一般来说,最好伪装成那些没有信息 or 信息很少的村民阵营角色,比如捣蛋鬼</li>
+      <li>你也可以反其道行之,直接声称自己是狼人--因为真正的狼人不会自爆,大家反而会觉得你是皮匠在玩套路,于是不会投你</li>
+      <li>你可以声称自己是强盗,说你偷了某人的牌,让对方的声称与你形成呼应</li>
+      <li>如果场上有另一个狼人同伴,你们可以双双声称自己是守夜人--虽然几乎肯定会被反驳,但只要表现得够有说服力也能蒙混过关</li>
+      <li>如果你是独狼,可以声称自己是预言家,说你看了中央两张牌,其中一张是狼人--实际上中央确实有一张狼人牌,所以不会被拆穿</li>
+      <li>如果场上可疑的人很多,你可以声称自己是酒鬼--你确实可能换到了村民牌。但如果村民认为场上有可能没有狼人,他们可能会投你,因为你"现在可能是狼人"</li>
+      <li>一个冒险但有效的策略:声称自己是捣蛋鬼,说你把狼人同伴和某个村民互换了--让同伴脱离狼人身份,而让那个村民背锅成为"新的狼人"</li>
+      </ul>
+    </div>
+</div>
+<div class="role-card">
+  <div class="role-header">
+    <div class="role-name">Alpha Wolf</div>
+    <div class="role-tags">
+      <span class="tag tag-werewolf">🐺 狼人阵营</span>
+    </div>
+  </div>
+  <div class="ability"><div class="ability-label">📖 技能</div>
+    <p style="margin:4px 0;color:#c0c0c0">使用阿尔法狼时,额外将一张狼人牌垂直放置在中央牌旁。阿尔法狼睁眼时,将这张狼人牌与另一名玩家的身份牌交换。</p>
+  </div>
+    <div class="strategies">
+      <div class="strategy-label">🧠 最优策略</div>
+      <ul class="strategy-list">
+      <li>务必注意是否有人查看或调换了中央的狼人牌,这能帮你确认队友身份</li>
+      <li>要随时计算狼人是否可能已经占多数,判断局势走向</li>
+      <li>如果你的牌被换走了,你需要找出谁现在拿着你的狼人牌</li>
+      <li>被你换了狼人牌的玩家(除非是失眠者)不会知道自己已经变成狼人,所以你需要确保他们活着,或者巧妙地暗示他们"你已经是狼人了"</li>
+      <li>如果你是预言家,可以查看中央的狼人牌然后保持沉默。等有人声称那个角色时,你就知道他是狼人了。如果你看到的是自己,那你自己就是狼人!</li>
+      </ul>
+    </div>
+</div>
+<div class="role-card">
+  <div class="role-header">
+    <div class="role-name">Dream Wolf</div>
+    <div class="role-tags">
+      <span class="tag tag-werewolf">🐺 狼人阵营</span>
+    </div>
+  </div>
+  <div class="ability"><div class="ability-label">📖 技能</div>
+    <p style="margin:4px 0;color:#c0c0c0">夜间不睁眼,但在其他狼人和爪牙睁眼时竖起大拇指</p>
+  </div>
+    <div class="strategies">
+      <div class="strategy-label">🧠 最优策略</div>
+      <ul class="strategy-list">
+      <li>梦狼可能是最难扮演的角色之一--不仅要像其他狼人一样编造谎言并自圆其说,还完全不知道队友是谁,甚至不知道自己有没有队友。而且作为独狼时,也无法查看中央牌</li>
+      <li>如果有人主动帮你圆谎、替你辩护,那ta大概率是你的狼人队友--因为只有狼人知道你是谁</li>
+      <li>好的伪装策略是声称一个拿不到信息的角色,比如捣蛋鬼,甚至皮匠。因为你想让人觉得你是无辜的,而且既然你搞不清谁该保谁,装成一个明显的皮匠反而省心--不用操心复杂的角色扮演</li>
+      <li>如果你判断狼人可能已经占多数,可以主动亮明梦狼身份,拉票</li>
+      </ul>
+    </div>
+</div>
+<div class="role-card">
+  <div class="role-header">
+    <div class="role-name">Mystic Wolf</div>
+    <div class="role-tags">
+      <span class="tag tag-werewolf">🐺 狼人阵营</span>
+    </div>
+  </div>
+  <div class="ability"><div class="ability-label">📖 技能</div>
+    <p style="margin:4px 0;color:#c0c0c0">睁眼时查看一名其他玩家的身份牌</p>
+  </div>
+    <div class="strategies">
+      <div class="strategy-label">🧠 最优策略</div>
+      <ul class="strategy-list">
+      <li>作为"狼人版预言家",你可能会想伪装成预言家,但这在老手局通常行不通,因为真正的预言家几乎都会查看两张中央牌</li>
+      <li>更好的选择是伪装成强盗,声称你偷了你之前看过牌的那个人的身份--等对方发言后再跟进,这样你的说法就得到了"印证"</li>
+      <li>你可以声称自己是超自然调查员,说你看到了某人确实是ta声称的角色,同时把狼人同伴伪装成容易认领的角色(比如捣蛋鬼)</li>
+      <li>你也可以声称自己只看了一张牌,尽量淡化自己的存在感</li>
+      <li>如果没有人翻牌确认,你可以声称自己是揭秘者,说你翻看到的人是狼人</li>
+      <li>你不能直接告诉狼人同伴你看到了什么,但通过你的发言和策略暗示,通常能让他们领会</li>
+      </ul>
+    </div>
+</div>
+<h2>🏠 村民阵营</h2>
+<div class="role-card">
+  <div class="role-header">
+    <div class="role-name">Drunk</div>
+    <div class="role-tags">
+      <span class="tag tag-village">🏠 村民阵营</span>
+    </div>
+  </div>
+  <div class="ability"><div class="ability-label">📖 技能</div>
+    <p style="margin:4px 0;color:#c0c0c0">酒鬼睁眼时,将自己的身份牌与一张中央牌交换(不查看新身份)。</p>
+  </div>
+    <div class="strategies">
+      <div class="strategy-label">🧠 最优策略</div>
+      <ul class="strategy-list">
+      <li>酒鬼是一个"命运随机"的角色--你不会获得任何新信息。这种"什么都不知道"的状态,既可能让人觉得无聊,也可能因为要猜测自己是好是坏而变得刺激</li>
+      <li>过早承认自己是酒鬼等于把命运交给运气。在确认场上有多少狼人之前,应该先隐藏自己的起始角色。当你比较确定中央大多是村民牌时,再公开酒鬼身份就比较安全了</li>
+      <li>谎称自己是预言家是引诱真正预言家现身的好办法,可以借此获取关于中央牌的宝贵信息</li>
+      <li>如果你记住了自己换走的那张中央牌是什么,再结合预言家或女巫等查看中央牌的角色提供的信息,就能推断出自己现在的身份</li>
+      <li>当有阿尔法狼在场时,你拿到的很可能就是中央的狼人牌。如果预言家或女巫说中央有狼人牌,你就知道自己变成狼人了;如果他们看到的是村民牌,你可以公开自己是酒鬼,继续以村民阵营的身份行事</li>
+      </ul>
+    </div>
+</div>
+<div class="role-card">
+  <div class="role-header">
+    <div class="role-name">Hunter</div>
+    <div class="role-tags">
+      <span class="tag tag-village">🏠 村民阵营</span>
+    </div>
+  </div>
+  <div class="ability"><div class="ability-label">📖 技能</div>
+    <p style="margin:4px 0;color:#c0c0c0">如果被票死,猎人投票的目标也会一起出局</p>
+  </div>
+    <div class="strategies">
+      <div class="strategy-label">🧠 最优策略</div>
+      <ul class="strategy-list">
+      <li>猎人应该尽量引诱狼人,让他们以为你是爪牙,或者只是一个在编故事的骗子</li>
+      <li>声称自己是预言家或超自然调查员,说你看了某个人且对方是村民或捣蛋鬼,这是个不错的策略。你可能会被视为骗子,但如果有人附和你,那ta大概率是狼人--因为投死你也会连带票死ta,狼人会故意配合你来避免自己被拖下水</li>
+      <li>警惕可能换走你身份牌的人--如果你已经不是猎人了,你的"连击"能力就没了,可能导致村民阵营输掉游戏</li>
+      <li>如果有人声称自己是猎人，你就投票给ta——这样即使你被票死，也会把ta一起带走。当然你也可以反驳，但直接利用猎人能力不是更痛快吗？</li>
+      <li>注意别意外把皮匠投死了--那等于送皮匠赢</li>
+      </ul>
+    </div>
+</div>
+<div class="role-card">
+  <div class="role-header">
+    <div class="role-name">Insomniac</div>
+    <div class="role-tags">
+      <span class="tag tag-village">🏠 村民阵营</span>
+    </div>
+  </div>
+  <div class="ability"><div class="ability-label">📖 技能</div>
+    <p style="margin:4px 0;color:#c0c0c0">失眠者在夜间最后睁眼,查看自己的身份牌是否被换过。</p>
+  </div>
+    <div class="strategies">
+      <div class="strategy-label">🧠 最优策略</div>
+      <ul class="strategy-list">
+      <li>如果你看到自己变成了强盗,说明你被强盗偷了牌</li>
+      <li>如果你看到自己仍然是失眠者,说明你没被换牌,仍然属于村民阵营</li>
+      <li>这也意味着如果有人声称换了你的牌,那ta一定在撒谎,很可能是狼人</li>
+      <li>如果你发现自己变成了狼人,可以先声称自己是狼人,然后再"改口"。捣蛋鬼或女巫如果说换了你的牌,那现在拿着狼人牌的就是和你换牌的人--大家应该投死ta。跟你换牌的人也可能声称自己是狼人,但你先发制人的声明会更有可信度</li>
+      <li>如果场上有阿尔法狼,而你现在变成了中央的狼人牌,那你可能是被阿尔法狼换了。先等等看女巫是否也换了你的牌再做判断</li>
+      </ul>
+    </div>
+</div>
+<div class="role-card">
+  <div class="role-header">
+    <div class="role-name">Mason</div>
+    <div class="role-tags">
+      <span class="tag tag-village">🏠 村民阵营</span>
+    </div>
+  </div>
+  <div class="ability"><div class="ability-label">📖 技能</div>
+    <p style="margin:4px 0;color:#c0c0c0">场上必须有2张守夜人牌。守夜人睁眼时,查看是否有其他守夜人。如果没有看到另一名守夜人,则说明另一张守夜人牌在中央三张牌中</p>
+  </div>
+    <div class="strategies">
+      <div class="strategy-label">🧠 最优策略</div>
+      <ul class="strategy-list">
+      <li>无论另一张守夜人牌在场上还是中央,你都能获得信息,因此守夜人是很好的信息收集角色</li>
+      <li>既然你们互相确认了身份,你们中可以有一人故意撒谎来引诱狼人暴露</li>
+      <li>声称自己是捣蛋鬼、强盗或其他会换牌的角色,是迷惑狼人、隐藏你们阵营的好方法</li>
+      <li>这样也能引出真正的捣蛋鬼来澄清事实。狼人无法判断到底发生了什么,一旦守夜人揭晓真相,村庄最终能拼出完整的信息链</li>
+      <li>一个策略是:表示不想公开队友是谁,也不要求队友亮身份。如果有人冒充你的队友,那几乎肯定是狼人</li>
+      <li>但如果你们被拆穿了谎言,被迫承认是守夜人,很可能会变得非常可疑,甚至被票死</li>
+      <li>如果你是单独的守夜人(另一张牌在中央),你得不到队友的支持,很可能被视为狼人,尤其是一对狼人也在冒充守夜人的时候</li>
+      </ul>
+    </div>
+</div>
+<div class="role-card">
+  <div class="role-header">
+    <div class="role-name">Robber</div>
+    <div class="role-tags">
+      <span class="tag tag-village">🏠 村民阵营</span>
+    </div>
+  </div>
+  <div class="ability"><div class="ability-label">📖 技能</div>
+    <p style="margin:4px 0;color:#c0c0c0">强盗睁眼时,将自己的身份牌与另一名玩家的身份牌交换,然后查看自己的新身份。如果换到的角色在夜间有行动,强盗不会再次睁眼。</p>
+  </div>
+    <div class="strategies">
+      <div class="strategy-label">🧠 最优策略</div>
+      <ul class="strategy-list">
+      <li>如果你偷到的是村民牌,你可以确认对方的身份并为ta作证</li>
+      <li>你也可以先不公开偷了谁,等那个人先发言--如果ta撒谎了,你再揭露;如果ta说的是真的,你就能确认ta的身份</li>
+      <li>如果你变成了狼人,等对方先声称自己的角色后,再说出你偷了ta--这样你有了一个没人能反驳的不在场证明</li>
+      <li>反过来,如果你偷的是真正的村民牌,要在对方发言之前公开,这样看起来更有可信度</li>
+      <li>虽然,这可能会让你看起来更可疑,就好像你是狼人或爪牙,给其他狼人提供不在场证据</li>
+      <li>而你偷走的那张狼人牌的原主人,仍然会以为自己是狼人、表现得像狼人--利用这一点推ta出局,为村民阵营争取胜利</li>
+      </ul>
+    </div>
+</div>
+<div class="role-card">
+  <div class="role-header">
+    <div class="role-name">Seer</div>
+    <div class="role-tags">
+      <span class="tag tag-village">🏠 村民阵营</span>
+    </div>
+  </div>
+  <div class="ability"><div class="ability-label">📖 技能</div>
+    <p style="margin:4px 0;color:#c0c0c0">预言家睁眼时,可以查看一名玩家的身份牌,或查看两张中央牌(二选一)。</p>
+  </div>
+    <div class="strategies">
+      <div class="strategy-label">🧠 最优策略</div>
+      <ul class="strategy-list">
+      <li>预言家几乎应该总是看两张中央牌--不仅信息量更大,而且便于在讨论中反驳别人的虚假声明</li>
+      <li>在黎明扩展包中,看单个玩家的牌尤其不推荐--不仅因为换牌角色更多、信息容易被搅乱,还因为揭秘者是一个更强的替代角色(翻牌是公开的,不受换牌影响)</li>
+      <li>如果有神秘狼在场,你声称预言家会非常可疑--因为神秘狼做了和预言家一样的事,你可能被当作狼人票死</li>
+      <li>当酒鬼或女巫在场时,要记住你看过哪些中央牌--它们可能已经被换走了</li>
+      <li>预言家需要权衡时机:是尽早公开信息,还是等有人声称你看到的角色后再揭露。你也可以先保持沉默,看看是否有人声称你看到的那个角色</li>
+      <li>尽早公开信息会让你显得更可信,还能威慑独狼--即使你没看到那张牌,也能打乱他们编造谎言的节奏</li>
+      <li>不过,等到有人声称你看到的中央角色时再跳出来反驳,能更精准地打击狼人。等得越久,越容易找到狼人是谁,但你也可能因为沉默太久而变得可疑</li>
+      </ul>
+    </div>
+</div>
+<div class="role-card">
+  <div class="role-header">
+    <div class="role-name">Troublemaker</div>
+    <div class="role-tags">
+      <span class="tag tag-village">🏠 村民阵营</span>
+    </div>
+  </div>
+  <div class="ability"><div class="ability-label">📖 技能</div>
+    <p style="margin:4px 0;color:#c0c0c0">捣蛋鬼睁眼时,可以交换另外两名玩家的身份牌(不看牌)。不能交换自己的牌</p>
+  </div>
+    <div class="strategies">
+      <div class="strategy-label">🧠 最优策略</div>
+      <ul class="strategy-list">
+      <li>捣蛋鬼可以谎报换了谁,所以如果你发现某人是狼人,可以把ta说成是被换成了村民,引诱其他人不投ta</li>
+      <li>你也可以选择说真话--如果你被视为可信的人,其他人就更愿意公开自己的角色信息</li>
+      <li>虽然你的能力很强,但狼人也很喜欢冒充捣蛋鬼--因为这个角色太容易编造了</li>
+      <li>偶尔你可以选择不交换,但仍然声称换了人--这样既能降低嫌疑,又能诱骗其他玩家亮出身份。这招要谨慎使用</li>
+      <li>私下告诉某个玩家ta被换了牌,有很多战术好处</li>
+      <li>对狼人来说,不管你是捣蛋鬼还是强盗,都会让他们举棋不定--他们可能会选择冒充捣蛋鬼,或者犹豫是否要碰这两个角色</li>
+      <li>如果你想让某些角色(比如殡葬师或领袖)隐藏自己的位置,告诉被换牌的玩家真相后,ta就可以放心发言了--因为ta知道自己已经不是原来的角色</li>
+      </ul>
+    </div>
+</div>
+<div class="role-card">
+  <div class="role-header">
+    <div class="role-name">Villager</div>
+    <div class="role-tags">
+      <span class="tag tag-village">🏠 村民阵营</span>
+    </div>
+  </div>
+  <div class="ability"><div class="ability-label">📖 技能</div>
+    <p style="margin:4px 0;color:#c0c0c0">无特殊技能。</p>
+  </div>
+    <div class="strategies">
+      <div class="strategy-label">🧠 最优策略</div>
+      <ul class="strategy-list">
+      <li>村民的核心策略是引诱狼人也声称自己是村民--这样可以缩小村民阵营的嫌疑人范围</li>
+      <li>村民身份对狼人和梦狼来说非常有吸引力,因为这个角色没有任何秘密信息可以暴露</li>
+      <li>所以开局不要直接说自己是村民--这反而非常可疑</li>
+      <li>主动伪装成其他角色,这样狼人能安全冒充的角色就越来越少--狼人也不想把嫌疑人缩小到只剩两个</li>
+      <li>一旦锁定了狼人,如果你也被怀疑,可以要求跟狼人平票--这对村民阵营有利,因为狼人无法在不暴露的情况下拒绝这个提议</li>
+      <li>确保要求所有疑似狼人都投票给你,这样狼人就无法暗中操作投票结果</li>
+      </ul>
+    </div>
+</div>
+<div class="role-card">
+  <div class="role-header">
+    <div class="role-name">Apprentice Seer</div>
+    <div class="role-tags">
+      <span class="tag tag-village">🏠 村民阵营</span>
+    </div>
+  </div>
+  <div class="ability"><div class="ability-label">📖 技能</div>
+    <p style="margin:4px 0;color:#c0c0c0">见习预言家睁眼时,查看一张中央牌。</p>
+  </div>
+    <div class="strategies">
+      <div class="strategy-label">🧠 最优策略</div>
+      <ul class="strategy-list">
+      <li>弱化版预言家,整体策略参照预言家</li>
+      <li>见习预言家是独狼非常容易冒充的角色,要警惕那些做虚假声明的人</li>
+      <li>如果场上有阿尔法狼,是否选择查看中央的狼人牌是一个值得考虑的策略抉择</li>
+      <li>查看中央狼人牌通常能确认阿尔法狼是否在场</li>
+      <li>查看另一张中央牌能获得有用信息,但如何传递给其他玩家是个难题</li>
+      </ul>
+    </div>
+</div>
+<div class="role-card">
+  <div class="role-header">
+    <div class="role-name">Bodyguard</div>
+    <div class="role-tags">
+      <span class="tag tag-village">🏠 村民阵营</span>
+    </div>
+  </div>
+  <div class="ability"><div class="ability-label">📖 技能</div>
+    <p style="margin:4px 0;color:#c0c0c0">保镖所投票的玩家不会被票死。如果保镖投票的目标获得最多票数,则该目标免于出局,改为票死获得第二多票数的玩家(平票者均出局)。保镖是 Daybreak 扩展包的白天行动角色</p>
+  </div>
+    <div class="strategies">
+      <div class="strategy-label">🧠 最优策略</div>
+      <ul class="strategy-list">
+      <li>作为保镖,除非你即将被票死,否则不要暴露自己的角色--你要隐藏身份来引诱狼人</li>
+      <li>试试指控一个看起来无辜的人,看谁跟风--跟风的人很可能就是狼人。同时巧妙地让至少另外两个人投票给你指控的对象,然后你投票保护被指控的人</li>
+      <li>因为狼人几乎无法抗拒对无辜玩家落井下石的诱惑</li>
+      <li>风险在于你可能让自己变得太可疑,而且你无法保护自己(不能给自己投票)</li>
+      <li>你的角色和猎人完全相反--猎人被票死会带走别人,你则保护别人不被票死</li>
+      <li>尽量避免在三人的对局中使用保镖,因为狼人在人少时反而有更高的胜率</li>
+      </ul>
+    </div>
+</div>
+<div class="role-card">
+  <div class="role-header">
+    <div class="role-name">Paranormal Investigator</div>
+    <div class="role-tags">
+      <span class="tag tag-village">🏠 村民阵营</span>
+    </div>
+  </div>
+  <div class="ability"><div class="ability-label">📖 技能</div>
+    <p style="margin:4px 0;color:#c0c0c0">超自然调查员睁眼时,可以查看最多两张身份牌。如果其中任何一张不是村民阵营牌,必须停止查看并变成该角色,但在该角色行动时不会睁眼。超自然调查员的牌在换牌时按该牌处理。</p>
+  </div>
+    <div class="strategies">
+      <div class="strategy-label">🧠 最优策略</div>
+      <ul class="strategy-list">
+      <li>如果没必要,考虑隐藏自己是超自然调查员--因为大家会怀疑你现在可能已经变成了狼人</li>
+      <li>如果你真的变成了狼人,隐瞒身份就更加重要了</li>
+      <li>但如果你变成了皮匠,就不一样了--你反而希望引起怀疑</li>
+      <li>如果你仍然是村民阵营,那你就是一个非常强大的角色--因为你能确认另外两个人是村民</li>
+      <li>你也可以谎称你看到的狼人其实是爪牙,而你自己仍是村民。这会让狼人把注意力从真正的狼人身上移开(因为爪牙不能死,否则村庄输),同时你也向真正的狼人暗示"我已经是狼人了",让他们去保护一个无辜的人,那个人反而会变得可疑</li>
+      <li>你也可以选择只看1张牌或者不看牌,尽量降低变成狼人的风险</li>
+      <li>如果你看到一张是村民牌、另一张是狼人牌,可以声称自己是强盗,说你偷了那张村民牌--最好在对方发言之前就说,这样更有可信度</li>
+      <li>如果你仍是村民阵营,也可以用这个策略降低嫌疑。但真正的强盗可能因此变得可疑,所以你也可以直接公开自己是超自然调查员--不过这样反而可能让你更可疑,让问题更复杂</li>
+      <li>如果你变成了刺客,等待刺客标记的持有者暴露,然后煽动大家投票给ta</li>
+      <li>如果你变成了学徒刺客,尝试找到刺客并让ta发动投票能力</li>
+      </ul>
+    </div>
+</div>
+<div class="role-card">
+  <div class="role-header">
+    <div class="role-name">Revealer</div>
+    <div class="role-tags">
+      <span class="tag tag-village">🏠 村民阵营</span>
+    </div>
+  </div>
+  <div class="ability"><div class="ability-label">📖 技能</div>
+    <p style="margin:4px 0;color:#c0c0c0">揭秘者睁眼时,选择一名玩家的身份牌翻面朝上。如果不是村民阵营牌,则将其翻回。</p>
+  </div>
+    <div class="strategies">
+      <div class="strategy-label">🧠 最优策略</div>
+      <ul class="strategy-list">
+      <li>揭秘者可以发挥"信息型角色"的作用,帮村庄确认谁是村民--这总是好事,但代价是如果你翻了村民牌,你自己就没有任何私密信息了</li>
+      <li>确认了别人的身份后,你也可以主导讨论方向</li>
+      <li>但如果你翻到了狼人牌(会被翻回去),你就像一个普通村民--你没办法证明自己是揭秘者,但你确实知道某人是狼人</li>
+      <li>如果你的村民身份已经得到确认,就可以放心指出你看到的狼人</li>
+      <li>如果你有盟友支持,你的话会自动被采信,几乎肯定能让那个狼人被票死</li>
+      <li>你可以利用这个能力和其他狼人串供--比如神秘狼声称偷了你的牌,而你说你看到某人是狼人,互相印证</li>
+      <li>唯一的问题是:真正的揭秘者很难建立可信度,更别说对方还有狼人帮忙圆谎</li>
+      <li>如果你自己是狼人或皮匠,冒充揭秘者是个制造混乱的好方法--尤其配合声称自己是强盗的神秘狼,可以互相印证</li>
+      <li>即使没有人被翻牌,揭秘者也是狼人冒充的好选择--你可以诬陷某人是狼人并得到狼人同伴的呼应</li>
+      </ul>
+    </div>
+</div>
+
+<div class="role-card">
+  <div class="role-header">
+    <div class="role-name">Witch</div>
+    <div class="role-tags">
+      <span class="tag tag-village">🏠 村民阵营</span>
+    </div>
+  </div>
+  <div class="ability"><div class="ability-label">📖 技能</div>
+    <p style="margin:4px 0;color:#c0c0c0">女巫睁眼时,可以查看一张中央牌。如果查看了,必须将该中央牌与某名玩家(包括自己)的身份牌交换。</p>
+  </div>
+    <div class="strategies">
+      <div class="strategy-label">🧠 最优策略</div>
+      <ul class="strategy-list">
+      <li>女巫通常应该查看中央的狼人牌。如果看到了狼人,不仅能确认场上有阿尔法狼,还知道你把狼人牌给了谁,可以轻松推动票死ta</li>
+      <li>注意:狼人也常用这个策略来陷害别人,所以你的表现必须令人信服</li>
+      <li>如果你看到的是村民牌,说明阿尔法狼在场。等有人声称你看到的那张牌的角色时,你就知道ta是狼人了</li>
+      <li>如果你是被人用这招陷害的一方,一个反制方法是声称自己是阿尔法狼,把女巫变成了狼人,而你现在是女巫、ta才是坏人。这招不能反复用,你需要表现得够有说服力</li>
+      <li>一个更简单但效果较弱的策略是直接声称"女巫在撒谎"--因为确实有些狼人会用这个策略来骗票</li>
+      <li>如果你在中央看到自己的牌旁边是狼人牌,你就知道自己被换成了狼人。如果你把女巫牌给了别人,可以声称你看到中央有狼人牌,然后把村民牌给了一个"可信的"玩家</li>
+      <li>如果场上没有阿尔法狼,策略类似:如果你看到中央有狼人牌并把它给了某人,对方就变成了狼人。如果你给的是村民牌,对方就能被确认清白;如果你变成了狼人,也可能帮村民票死其他狼人</li>
+      <li>你可以选择谎报把村民牌给了谁--如果对方是狼人,可能会因此暴露自己甚至拖狼队友下水</li>
+      </ul>
+    </div>
+</div>
+
+<h2>🎭 独立阵营</h2>
+<div class="role-card">
+  <div class="role-header">
+    <div class="role-name">Tanner</div>
+    <div class="role-tags">
+      <span class="tag tag-independent">🎭 独立阵营</span>
+    </div>
+  </div>
+  <div class="ability"><div class="ability-label">📖 技能</div>
+    <p style="margin:4px 0;color:#c0c0c0">皮匠只有被票死才能获胜。如果皮匠赢了,狼人阵营不能获胜。</p>
+  </div>
+    <div class="strategies">
+      <div class="strategy-label">🧠 最优策略</div>
+      <ul class="strategy-list">
+      <li>如果你直接声称自己是狼人,大家很可能会觉得你是皮匠在玩套路--因为没有真正的狼人会这么干</li>
+      <li>你可以声称自己是皮匠--因为真正的皮匠不会自爆,所以大家反而会认为你是狼人,然后投票给你</li>
+      <li>你可以声称自己是预言家,说你看的是某个玩家的牌--好的预言家通常会看两张中央牌,所以这个说法会让人怀疑你</li>
+      <li>如果场上有神秘狼,这个策略尤其高明--因为神秘狼确实会看玩家的牌</li>
+      <li>声称守夜人很可疑--如果真有另一个守夜人在场,ta会拆穿你;如果是单独的守夜人,本身就很可疑。所以这可能直接让你被票死</li>
+      <li>声称自己是偷了可疑人物的强盗,也会让人对你产生怀疑</li>
+      <li>如果村民认为场上可能没有狼人,声称自己是酒鬼也是一个策略</li>
+      <li>总的来说,冒充别人已经声称过的角色是一个不错的策略--制造信息冲突,让你更容易被怀疑</li>
+      <li>什么都不声明虽然明显,但确实会让你变得可疑</li>
+      <li>声称自己是猎人是个妙招——你可以要求大家投票给你，这样就能利用“猎人被票死会带走目标”的能力，顺理成章地赢得胜利</li>
+      <li>如果你是村民阵营的角色,场上有皮匠时要小心--不要让猎人把票投给"可疑的狼人",因为那可能是皮匠在试图骗死自己</li>
+      <li>声称自己是超自然调查员是个好主意--因为"现在可能已经变成狼人了"这个说法既可疑又难以反驳</li>
+      <li>伪装成女巫或见习预言家这种信息型角色,但拿不出任何信息来分享--会让大家觉得你是一个露馅的狼人</li>
+      <li>声称自己是没见过吸血鬼的伦菲尔德不算好策略,但有些人可能会觉得你自己就是吸血鬼</li>
+      <li>在没有人宣布相爱的情况下声称自己是丘比特,不够微妙但足够可疑</li>
+      <li>如果你有刺客标记,不要声称自己是刺客--刺客的工作方式类似学徒皮匠,如果场上还有学徒皮匠,那现在就有两个人想票死你</li>
+      <li>声称一个几乎不可能被冒充的角色(如石头人或共情者能力),可能会让你被票死--大家可能觉得你是狼人。但另一方面,因为没有坏人会主动认这些角色,你也可能被当成皮匠</li>
+      <li>声称自己是光环预言家很可疑,因为你必须猜出谁动过或看过某张牌</li>
+      <li>声称自己是"被诅咒者"是一个同时让狼人和村民都想投你的方法</li>
+      <li>如果有人反复指控你,ta很可能是学徒皮匠</li>
+      <li>抛出或维护毫无根据的说法会让你非常可疑,但如果你替所有人的说法辩护,那你的皮匠意图就太明显了</li>
+      <li>关于《一夜终极异形》中的角色策略,请参阅扩展包资料</li>
+      </ul>
+    </div>
+</div>
+<div class="footer">数据来源:one-night.fandom.com · One Night Wiki · Generated 2026-04-12</div>
+</div></body></html>
