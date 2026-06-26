@@ -577,11 +577,26 @@ class OneNightEngine:
                         lines_text = lines_text[:-1]
                     text = "\n".join(lines_text).strip()
                     
-                # Enforce size limit (4096 bytes)
+                # Enforce size limit (8192 bytes)
                 encoded = text.encode('utf-8')
-                if len(encoded) > 4096:
-                    # Safe truncation on byte-level
-                    text = encoded[:4096].decode('utf-8', errors='ignore')
+                if len(encoded) > 8192:
+                    # Simplify and compress using another prompt pass
+                    try:
+                        text = player.compress_reflection(text)
+                        # Remove markdown backticks if any
+                        text = text.strip()
+                        if text.startswith("```"):
+                            lines_text = text.split("\n")
+                            if lines_text[0].startswith("```"):
+                                lines_text = lines_text[1:]
+                            if lines_text[-1].startswith("```"):
+                                lines_text = lines_text[:-1]
+                            text = "\n".join(lines_text).strip()
+                        encoded = text.encode('utf-8')
+                        if len(encoded) > 8192:
+                            text = encoded[:8192].decode('utf-8', errors='ignore')
+                    except Exception:
+                        text = encoded[:8192].decode('utf-8', errors='ignore')
                     
                 # Save to reflections folder
                 reflection_path = f"reflections/{init_role}.md"

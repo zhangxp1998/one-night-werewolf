@@ -368,7 +368,7 @@ class LLMPlayer:
         格式与规则要求：
         1. 必须使用 Markdown 格式。
         2. 如果下方提供了旧的心得体会，请把旧的有用经验保留，并与这局的新教训进行融合整理。不要简单地在最底部叠加追加，而是要分类归纳，相同的教训进行合并。
-        3. 请将输出严格限制在 4096 字节（约 800-1000 个汉字）以内，精简干练，去掉客套话。如果超出限制，请积极精简、概括旧的相似条目。
+        3. 请将输出尽可能限制在 8192 字节以内，精简干练，去掉客套话。
         
         以下是历史的心得体会（如果有的话，供参考融合）：
         ---
@@ -378,9 +378,24 @@ class LLMPlayer:
         
         config_dict = {
             "temperature": 0.6,
-            "max_output_tokens": 3000
         }
         
+        response = generate_content_with_retry(
+            [types.Content(role="user", parts=[types.Part.from_text(text=user_prompt)])],
+            config_dict
+        )
+        return response.text
+
+    def compress_reflection(self, long_text: str) -> str:
+        """Queries the model to simplify and compress the reflection markdown under 8192 bytes."""
+        user_prompt = f"""以下是一份《{self.initial_role}角色心得体会》Markdown 文档，其当前篇幅过长。
+        请在保留核心复盘经验、战术要点和 Markdown 排版格式的前提下，对以下内容进行精简与合并，使最终文字量缩减至 8192 字节（约 2000 个汉字）以内，精简干练，去掉客套话：
+        
+        {long_text}
+        """
+        config_dict = {
+            "temperature": 0.3,
+        }
         response = generate_content_with_retry(
             [types.Content(role="user", parts=[types.Part.from_text(text=user_prompt)])],
             config_dict
